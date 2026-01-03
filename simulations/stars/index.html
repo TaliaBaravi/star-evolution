@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>תהליך התפתחות כוכבים</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#050508">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root {
+            --bg-color: #050508;
+            --panel-bg: rgba(15, 15, 25, 0.9);
+            --accent-color: #6366f1;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-main);
+            touch-action: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            max-width: 100%;
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-text h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-right: 4px solid var(--accent-color);
+            padding-right: 12px;
+            padding-left: 0;
+        }
+
+        .sound-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .controls-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px);
+            padding: 16px;
+            border-radius: 16px;
+            pointer-events: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 280px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+        }
+
+        .mass-slider {
+            width: 100%;
+            height: 25px;
+            cursor: pointer;
+            accent-color: var(--accent-color);
+        }
+
+        .bottom-ui {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: auto;
+            margin-bottom: var(--safe-area-inset-bottom);
+        }
+
+        .stage-info {
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px);
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .stage-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #fff;
+        }
+
+        .stage-description {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        #wormholeBtn {
+            background: linear-gradient(45deg, #6366f1, #a855f7);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: none;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        #wormholeBtn.active-state {
+            background: #ef4444;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #wormholeBtn:active {
+            transform: scale(0.95);
+        }
+
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 4px;
+        }
+
+        .timeline-step {
+            flex: 1;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .timeline-step.active {
+            background: var(--accent-color);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .timeline-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-dim);
+            pointer-events: none;
+        }
+
+        .active .timeline-label {
+            color: #fff;
+        }
+
+        .hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.2);
+            font-size: 14px;
+            pointer-events: none;
+            letter-spacing: 2px;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div class="hint" id="hint">געו כדי להפעיל סאונד</div>
+
+    <div class="overlay">
+        <div class="header">
+            <div class="header-text">
+                <h1>אבולוציה של כוכבים</h1>
+                <div class="controls-panel">
+                    <div class="control-group">
+                        <label>מסה התחלתית <span class="mass-value" id="massLabel">1.0 M☉</span></label>
+                        <input type="range" min="0.5" max="30" step="0.5" value="1" class="mass-slider" id="massInput">
+                    </div>
+                </div>
+            </div>
+            
+            <button class="sound-toggle" id="soundToggle" title="הפעל/השתק סאונד">
+                <svg id="speaker-icon" viewBox="0 0 24 24" width="20" height="20" fill="white">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="bottom-ui">
+            <div class="stage-info" id="infoPanel">
+                <div class="stage-title" id="stageTitle">ערפילית</div>
+                <div class="stage-description" id="stageDesc">
+                    כוכבים מתחילים בעננים עצומים וקרים של גז ואבק. כוח המשיכה מתחיל למשוך את הליבה יחד.
+                </div>
+                <button id="wormholeBtn">קפיצה לעל-חלל</button>
+            </div>
+
+            <div class="timeline" id="timeline">
+                <!-- Steps generated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="stars.js"></script>
+</body>
+</html>
