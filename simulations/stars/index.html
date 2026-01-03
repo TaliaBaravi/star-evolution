@@ -117,7 +117,6 @@
             accent-color: var(--accent-color);
         }
 
-        /* Fate Dynamic Tooltip */
         .fate-prediction {
             font-size: 11px;
             color: var(--accent-color);
@@ -175,7 +174,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Pulsating animation for Hyperspace */
         @keyframes pulseGlow {
             0% { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transform: scale(1); }
             50% { box-shadow: 0 4px 25px rgba(99, 102, 241, 0.8); transform: scale(1.02); }
@@ -302,8 +300,8 @@
 
     <!-- Onboarding Step 2 (Mass) -->
     <div id="tip-mass" class="onboarding-tip">
+        <svg class="bouncing-arrow" id="mass-arrow" viewBox="0 0 24 24"><path d="M12 21l-12-18h24z"/></svg>
         <div class="onboarding-bubble">נסו לשנות את המסה – זה ישפיע על הגורל הסופי של הכוכב!</div>
-        <svg class="bouncing-arrow" viewBox="0 0 24 24"><path d="M12 21l-12-18h24z"/></svg>
     </div>
 
     <div class="overlay">
@@ -340,7 +338,6 @@
             </div>
         </div>
     </div>
-
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="stars.js"></script>
