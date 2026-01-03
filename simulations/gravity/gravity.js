@@ -1,20 +1,20 @@
     const PLANETS = {
             earth: { 
-                name: "כדור הארץ", g: 9.81, 
+                name: "כדור הארץ", g: 9.81, rho: 1.225, // Air Density kg/m^3
                 bgColor: 0x1a4a8a, fogColor: 0x0a192f, 
                 groundColor: 0x1a3a5a, gridColor: 0x3b82f6,
                 starSpeed: 0.2, starColor: 0xffffff,
                 surfaceType: 'earth'
             },
             moon: { 
-                name: "הירח", g: 1.62, 
+                name: "הירח", g: 1.62, rho: 0.0, // Vacuum
                 bgColor: 0x000000, fogColor: 0x000000, 
                 groundColor: 0x222222, gridColor: 0x444444,
                 starSpeed: 0.05, starColor: 0xcccccc,
                 surfaceType: 'moon'
             },
             jupiter: { 
-                name: "צדק", g: 24.79, 
+                name: "צדק", g: 24.79, rho: 0.16, // Top atmosphere density
                 bgColor: 0x2d1a0a, fogColor: 0x2d1a0a, 
                 groundColor: 0x4d3215, gridColor: 0xf59e0b,
                 starSpeed: 0.8, starColor: 0xffd8a8,
@@ -24,16 +24,17 @@
 
         const OBJECTS = {
             metal: { 
-                name: "כדור מתכת", 
-                type: "sphere", 
-                radius: 0.7, 
-                color: 0xcccccc, // Changed from white to light gray
-                metalness: 1.0, 
-                roughness: 0.05, // Slightly rougher for better highlight spread
-                emissive: 0x555555 // Increased emissive brightness
+                name: "כדור מתכת", type: "sphere", radius: 0.7, mass: 15.0, Cd: 0.47,
+                color: 0xcccccc, metalness: 1.0, roughness: 0.05, emissive: 0x555555 
             },
-            tennis: { name: "כדור טניס", type: "sphere", radius: 0.4, color: 0xbada55, roughness: 0.8 },
-            feather: { name: "נוצה", type: "custom", color: 0xffffff }
+            tennis: { 
+                name: "כדור טניס", type: "sphere", radius: 0.4, mass: 0.057, Cd: 0.47,
+                color: 0xbada55, roughness: 0.8 
+            },
+            feather: { 
+                name: "נוצה", type: "custom", mass: 0.002, Cd: 1.2, area: 0.15, // Effective cross-section
+                color: 0xffffff 
+            }
         };
 
         const START_HEIGHT = 10;
@@ -42,7 +43,12 @@
         let isFalling = false;
         let startTime = 0;
         let fallTime = 0;
+        let lastFrameTime = 0;
         let uiVisible = true;
+
+        // Physics state
+        let currentY = START_HEIGHT;
+        let currentVel = 0;
 
         let scene, camera, renderer, objectMesh, ground, grid, starSystem, planetarySurface;
         let mouseX = 0, mouseY = 0;
@@ -211,6 +217,8 @@
         function resetObject() {
             isFalling = false;
             fallTime = 0;
+            currentY = START_HEIGHT;
+            currentVel = 0;
             objectMesh.position.set(0, START_HEIGHT, 0);
             objectMesh.rotation.set(0,0,0);
             updateUIStats();
@@ -250,13 +258,14 @@
             else {
                 isFalling = true;
                 startTime = performance.now();
+                lastFrameTime = performance.now();
                 document.getElementById('drop-btn').innerText = "איפוס";
                 document.getElementById('drop-btn').classList.replace('bg-blue-600', 'bg-red-600');
             }
         }
 
         function updateUIStats() {
-            document.getElementById('height-val').innerText = Math.max(0, objectMesh.position.y).toFixed(1);
+            document.getElementById('height-val').innerText = Math.max(0, currentY).toFixed(1);
             document.getElementById('time-val').innerText = fallTime.toFixed(2);
         }
 
@@ -279,11 +288,38 @@
             starSystem.rotation.y += 0.0001 * p.starSpeed;
 
             if (isFalling) {
-                fallTime = (performance.now() - startTime) / 1000;
-                let newY = START_HEIGHT - (0.5 * p.g * Math.pow(fallTime, 2));
-                const stopY = currentObject === 'feather' ? 0.7 : OBJECTS[currentObject].radius;
-                if (newY <= stopY) { newY = stopY; isFalling = false; }
-                objectMesh.position.y = newY;
+                const now = performance.now();
+                const dt = (now - lastFrameTime) / 1000;
+                lastFrameTime = now;
+                fallTime += dt;
+
+                const o = OBJECTS[currentObject];
+                const area = o.type === 'sphere' ? Math.PI * Math.pow(o.radius, 2) : o.area;
+                
+                // PHYSICS UPDATE (NUMERICAL INTEGRATION)
+                // Fg = m * g (downward)
+                const fg = o.mass * p.g;
+                
+                // Fd = 0.5 * rho * v^2 * Cd * Area (opposes motion)
+                // We use sign of currentVel to ensure drag is always upward during fall
+                const fd = 0.5 * p.rho * Math.pow(currentVel, 2) * o.Cd * area;
+                
+                // Net Force = Fd - Fg (assuming y is up)
+                const netForce = fd - fg;
+                const accel = netForce / o.mass;
+                
+                currentVel += accel * dt;
+                currentY += currentVel * dt;
+
+                const stopY = currentObject === 'feather' ? 0.7 : o.radius;
+                if (currentY <= stopY) { 
+                    currentY = stopY; 
+                    currentVel = 0;
+                    isFalling = false; 
+                }
+                
+                objectMesh.position.y = currentY;
+                
                 if (currentObject === 'feather') {
                     objectMesh.rotation.z = Math.sin(fallTime * 4) * 0.6;
                     objectMesh.rotation.x = Math.PI / 2 + Math.cos(fallTime * 2) * 0.4;
