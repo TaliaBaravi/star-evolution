@@ -27,7 +27,7 @@
             background-color: var(--bg-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: var(--text-main);
-            touch-action: none; /* Prevents browser pull-to-refresh */
+            touch-action: none;
         }
 
         #canvas-container {
@@ -39,7 +39,6 @@
             z-index: 1;
         }
 
-        /* Responsive Overlay */
         .overlay {
             position: absolute;
             z-index: 10;
@@ -55,16 +54,34 @@
         .header {
             max-width: 100%;
             pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
 
-        .header h1 {
+        .header-text h1 {
             margin: 0;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: 1px;
             text-transform: uppercase;
             border-left: 4px solid var(--accent-color);
             padding-left: 12px;
+        }
+
+        /* Sound Toggle */
+        .sound-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
         }
 
         .controls-panel {
@@ -76,16 +93,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             margin-top: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 280px;
         }
 
         .control-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         label {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -94,12 +112,11 @@
 
         .mass-slider {
             width: 100%;
-            height: 30px;
+            height: 25px;
             cursor: pointer;
             accent-color: var(--accent-color);
         }
 
-        /* Bottom Section */
         .bottom-ui {
             display: flex;
             flex-direction: column;
@@ -114,7 +131,6 @@
             padding: 18px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
         }
 
         .stage-title {
@@ -141,13 +157,12 @@
 
         .timeline-step {
             flex: 1;
-            height: 44px; /* Touch target size */
+            height: 44px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
             transition: all 0.2s;
         }
 
@@ -158,7 +173,6 @@
 
         .timeline-label {
             font-size: 9px;
-            text-align: center;
             text-transform: uppercase;
             font-weight: 600;
             color: var(--text-dim);
@@ -167,24 +181,6 @@
 
         .active .timeline-label {
             color: #fff;
-        }
-
-        button {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .mass-value {
-            font-weight: bold;
-            color: var(--accent-color);
         }
 
         .hint {
@@ -197,25 +193,32 @@
             pointer-events: none;
             text-transform: uppercase;
             letter-spacing: 2px;
+            transition: opacity 0.5s;
         }
     </style>
 </head>
 <body>
 
     <div id="canvas-container"></div>
-    <div class="hint" id="hint">Drag to Explore</div>
+    <div class="hint" id="hint">Tap to Start Sound</div>
 
     <div class="overlay">
         <div class="header">
-            <h1>Stellar Evolution</h1>
-            
-            <div class="controls-panel">
-                <div class="control-group">
-                    <label>Initial Mass <span class="mass-value" id="massLabel">1.0 M☉</span></label>
-                    <input type="range" min="0.5" max="30" step="0.5" value="1" class="mass-slider" id="massInput">
+            <div class="header-text">
+                <h1>Star Evolution</h1>
+                <div class="controls-panel">
+                    <div class="control-group">
+                        <label>Initial Mass <span class="mass-value" id="massLabel">1.0 M☉</span></label>
+                        <input type="range" min="0.5" max="30" step="0.5" value="1" class="mass-slider" id="massInput">
+                    </div>
                 </div>
-                <button id="resetBtn">Restart Evolution</button>
             </div>
+            
+            <button class="sound-toggle" id="soundToggle" title="Toggle Sound">
+                <svg id="speaker-icon" viewBox="0 0 24 24" width="20" height="20" fill="white">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+            </button>
         </div>
 
         <div class="bottom-ui">
@@ -234,28 +237,86 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // --- EVOLUTION DATA ---
         const EVOLUTION_STAGES = [
-            { id: 'cloud', name: 'Nebula', desc: 'A vast cloud of gas and dust. Gravity begins to collapse the core.' },
-            { id: 'protostar', name: 'Proto', desc: 'The core heats up. It is not yet hot enough for nuclear fusion, but glows.' },
-            { id: 'main_sequence', name: 'Main', desc: 'Hydrogen fusion begins! The star enters a stable phase.' },
-            { id: 'red_giant', name: 'Giant', desc: 'Hydrogen runs out. The outer layers expand and cool.' },
-            { id: 'death', name: 'Death', desc: 'The end of life. Explodes or sheds outer layers.' },
-            { id: 'remnant', name: 'Fate', desc: 'The final destiny based on mass.' }
+            { id: 'cloud', name: 'Nebula', desc: 'Stars begin in massive, cold clouds of gas and dust. Gravity begins to pull the core together.' },
+            { id: 'protostar', name: 'Proto', desc: 'The core heats up and glows, but fusion hasn\'t started yet.' },
+            { id: 'main_sequence', name: 'Main', desc: 'Hydrogen fusion begins! The star is now stable and burning bright.' },
+            { id: 'red_giant', name: 'Giant', desc: 'The fuel runs low. The star swells up to many times its original size.' },
+            { id: 'death', name: 'Death', desc: 'High-mass stars explode in a Supernova, while smaller stars shed their outer layers.' },
+            { id: 'remnant', name: 'Fate', desc: 'The star becomes a White Dwarf, a Neutron Star, or a Black Hole.' }
         ];
 
-        let scene, camera, renderer, clock;
+        // --- AUDIO ENGINE ---
+        let audioCtx, droneOsc, masterGain;
+        let soundEnabled = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            masterGain.gain.value = 0.2;
+
+            // Ambient Space Drone
+            droneOsc = audioCtx.createOscillator();
+            droneOsc.type = 'sine';
+            droneOsc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A
+            
+            const droneGain = audioCtx.createGain();
+            droneGain.gain.value = 0.1;
+            
+            droneOsc.connect(droneGain);
+            droneGain.connect(masterGain);
+            droneOsc.start();
+        }
+
+        function playWhoosh() {
+            if (!soundEnabled) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playBoom() {
+            if (!soundEnabled) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 1.5);
+            g.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.5);
+        }
+
+        function speak(text) {
+            if (!soundEnabled) return;
+            window.speechSynthesis.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.pitch = 0.8; // Deep space voice
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- THREE.JS SIMULATION ---
+        let scene, camera, renderer, clock, rotationGroup;
         let starObject, particleSystem, nebulaSystem, accretionDisk;
         let currentStageIndex = 0;
         let stellarMass = 1.0;
-        
-        // Interaction variables
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let rotationGroup = new THREE.Group();
-        let targetRotationX = 0;
-        let targetRotationY = 0;
-
-        const container = document.getElementById('canvas-container');
+        let targetRotationX = 0, targetRotationY = 0;
 
         function init() {
             scene = new THREE.Scene();
@@ -264,13 +325,13 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for mobile performance
-            container.appendChild(renderer.domElement);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
 
             clock = new THREE.Clock();
+            rotationGroup = new THREE.Group();
             scene.add(rotationGroup);
 
-            // Lights
             scene.add(new THREE.AmbientLight(0x222244, 1.5));
             const pLight = new THREE.PointLight(0xffffff, 2);
             pLight.position.set(5, 5, 5);
@@ -278,66 +339,58 @@
 
             createBackgroundStars();
             updateStage(0);
+            createTimeline();
 
-            // Listeners
+            // Interaction
+            document.addEventListener('click', () => {
+                if(!audioCtx) {
+                    initAudio();
+                    soundEnabled = true;
+                    document.getElementById('hint').style.opacity = '0';
+                }
+            }, { once: true });
+
+            document.getElementById('soundToggle').addEventListener('click', (e) => {
+                e.stopPropagation();
+                soundEnabled = !soundEnabled;
+                masterGain.gain.value = soundEnabled ? 0.2 : 0;
+                document.getElementById('speaker-icon').style.opacity = soundEnabled ? '1' : '0.3';
+            });
+
             document.getElementById('massInput').addEventListener('input', (e) => {
                 stellarMass = parseFloat(e.target.value);
                 document.getElementById('massLabel').innerText = stellarMass.toFixed(1) + ' M☉';
-                updateUI();
+                if(currentStageIndex === 5) updateStage(5); // Refresh remnant view
             });
 
-            document.getElementById('resetBtn').addEventListener('click', () => goToStage(0));
-
-            createTimeline();
-
-            // Input Handling
             window.addEventListener('resize', onWindowResize);
             
-            // Mouse Events
-            container.addEventListener('mousedown', () => isDragging = true);
-            window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('mousemove', onMove);
-
-            // Touch Events
+            const container = document.getElementById('canvas-container');
             container.addEventListener('touchstart', (e) => {
                 isDragging = true;
                 previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                document.getElementById('hint').style.opacity = '0';
             }, { passive: true });
             
             window.addEventListener('touchend', () => isDragging = false);
             window.addEventListener('touchmove', (e) => {
-                onMove(e.touches[0]);
+                if (!isDragging) return;
+                const deltaMove = { x: e.touches[0].clientX - previousMousePosition.x, y: e.touches[0].clientY - previousMousePosition.y };
+                targetRotationY += deltaMove.x * 0.01;
+                targetRotationX += deltaMove.y * 0.01;
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }, { passive: false });
 
             animate();
-        }
-
-        function onMove(event) {
-            if (!isDragging) return;
-            
-            const deltaMove = {
-                x: event.clientX - previousMousePosition.x,
-                y: event.clientY - previousMousePosition.y
-            };
-
-            targetRotationY += deltaMove.x * 0.01;
-            targetRotationX += deltaMove.y * 0.01;
-
-            previousMousePosition = { x: event.clientX, y: event.clientY };
         }
 
         function createBackgroundStars() {
             const geometry = new THREE.BufferGeometry();
             const vertices = [];
             for (let i = 0; i < 2000; i++) {
-                vertices.push(THREE.MathUtils.randFloatSpread(1000));
-                vertices.push(THREE.MathUtils.randFloatSpread(1000));
-                vertices.push(THREE.MathUtils.randFloatSpread(1000));
+                vertices.push(THREE.MathUtils.randFloatSpread(1000), THREE.MathUtils.randFloatSpread(1000), THREE.MathUtils.randFloatSpread(1000));
             }
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.4 });
-            scene.add(new THREE.Points(geometry, material));
+            scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.4 })));
         }
 
         function createTimeline() {
@@ -347,59 +400,53 @@
                 const step = document.createElement('div');
                 step.className = 'timeline-step' + (index === 0 ? ' active' : '');
                 step.innerHTML = `<span class="timeline-label">${stage.name}</span>`;
-                step.onclick = () => goToStage(index);
+                step.onclick = (e) => { e.stopPropagation(); goToStage(index); };
                 timeline.appendChild(step);
             });
         }
 
         function goToStage(index) {
             currentStageIndex = index;
-            updateUI();
+            const stage = EVOLUTION_STAGES[index];
+            
+            // UI Updates
+            const steps = document.querySelectorAll('.timeline-step');
+            steps.forEach((step, idx) => step.classList.toggle('active', idx === index));
+            document.getElementById('stageTitle').innerText = stage.name;
+            
+            // Logic for different remnants
+            let finalDesc = stage.desc;
+            if (stage.id === 'remnant') {
+                if (stellarMass < 8) { 
+                    document.getElementById('stageTitle').innerText = 'White Dwarf'; 
+                    finalDesc = 'The cooling core of a sun-like star.';
+                } else if (stellarMass < 20) { 
+                    document.getElementById('stageTitle').innerText = 'Neutron Star';
+                    finalDesc = 'A city-sized ball of neutrons. Spinning fast!';
+                } else { 
+                    document.getElementById('stageTitle').innerText = 'Black Hole'; 
+                    finalDesc = 'The ultimate gravity trap. Nothing escapes.';
+                }
+            }
+            document.getElementById('stageDesc').innerText = finalDesc;
+
+            // Audio Events
+            if(stage.id === 'death') playBoom();
+            else playWhoosh();
+            
+            speak(document.getElementById('stageTitle').innerText + ". " + finalDesc);
+
             updateStage(index);
         }
 
-        function updateUI() {
-            const steps = document.querySelectorAll('.timeline-step');
-            steps.forEach((step, idx) => step.classList.toggle('active', idx === currentStageIndex));
-
-            const stage = EVOLUTION_STAGES[currentStageIndex];
-            document.getElementById('stageTitle').innerText = stage.name;
-            
-            if (stage.id === 'remnant') {
-                if (stellarMass < 8) {
-                    document.getElementById('stageTitle').innerText = 'White Dwarf';
-                    document.getElementById('stageDesc').innerText = 'A hot, dense carbon core. It will slowly cool over billions of years.';
-                } else if (stellarMass < 20) {
-                    document.getElementById('stageTitle').innerText = 'Neutron Star';
-                    document.getElementById('stageDesc').innerText = 'A city-sized sphere with a mass greater than the Sun. Incredibly dense.';
-                } else {
-                    document.getElementById('stageTitle').innerText = 'Black Hole';
-                    document.getElementById('stageDesc').innerText = 'Infinite density. Gravity is so strong that not even light can escape.';
-                }
-            } else {
-                document.getElementById('stageDesc').innerText = stage.desc;
-            }
-        }
-
-        function clearStage() {
-            while(rotationGroup.children.length > 0){ 
-                rotationGroup.remove(rotationGroup.children[0]); 
-            }
-            starObject = null; particleSystem = null; nebulaSystem = null; accretionDisk = null;
-        }
-
         function updateStage(index) {
-            clearStage();
+            while(rotationGroup.children.length > 0) rotationGroup.remove(rotationGroup.children[0]);
             const stage = EVOLUTION_STAGES[index];
+            starObject = null; particleSystem = null; nebulaSystem = null; accretionDisk = null;
 
             switch(stage.id) {
-                case 'cloud':
-                    createNebula(0x6366f1, 8, 1500);
-                    break;
-                case 'protostar':
-                    createNebula(0xfb923c, 4, 800);
-                    createStar(1.5, 0xfb923c, true);
-                    break;
+                case 'cloud': createNebula(0x6366f1, 8, 1500); break;
+                case 'protostar': createNebula(0xfb923c, 4, 800); createStar(1.5, 0xfb923c, true); break;
                 case 'main_sequence':
                     const color = stellarMass < 2 ? 0xfde047 : (stellarMass < 10 ? 0xffffff : 0x60a5fa);
                     const size = 1 + (stellarMass * 0.1);
@@ -413,74 +460,49 @@
                     createGlow(rSize * 1.4, rColor);
                     break;
                 case 'death':
-                    if (stellarMass < 8) {
-                        createNebula(0x2dd4bf, 8, 2000, true);
-                        createStar(0.5, 0xffffff, false);
-                    } else {
-                        createExplosion();
-                    }
+                    if (stellarMass < 8) { createNebula(0x2dd4bf, 8, 2000, true); createStar(0.5, 0xffffff, false); }
+                    else createExplosion();
                     break;
                 case 'remnant':
-                    if (stellarMass < 8) {
-                        createStar(0.4, 0xbfdbfe, false);
-                        createGlow(1.5, 0x60a5fa, 0.2);
-                    } else if (stellarMass < 20) {
-                        createStar(0.2, 0xffffff, false);
-                        createPulsarBeams();
-                    } else {
-                        createBlackHole();
-                    }
+                    if (stellarMass < 8) { createStar(0.4, 0xbfdbfe, false); createGlow(1.5, 0x60a5fa, 0.2); }
+                    else if (stellarMass < 20) { createStar(0.2, 0xffffff, false); createPulsarBeams(); }
+                    else createBlackHole();
                     break;
             }
         }
 
-        // Object helpers (Simplified for performance)
+        // --- 3D HELPERS ---
         function createStar(radius, color, isLowPoly) {
-            const geometry = new THREE.IcosahedronGeometry(radius, isLowPoly ? 1 : 3);
-            const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 });
-            starObject = new THREE.Mesh(geometry, material);
+            starObject = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, isLowPoly ? 1 : 3), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 }));
             rotationGroup.add(starObject);
         }
-
-        function createGlow(radius, color, opacity = 0.3) {
-            const glow = new THREE.Mesh(
-                new THREE.SphereGeometry(radius, 16, 16),
-                new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.BackSide })
-            );
-            rotationGroup.add(glow);
+        function createGlow(radius, color) {
+            rotationGroup.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, side: THREE.BackSide })));
         }
-
-        function createNebula(color, radius, count, expanding = false) {
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const vels = [];
+        function createNebula(color, radius, count, exp = false) {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
             for (let i = 0; i < count; i++) {
-                const r = radius * Math.pow(Math.random(), expanding ? 2 : 0.5);
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-                positions.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
-                vels.push((Math.random() - 0.5) * 0.02);
+                const r = radius * Math.pow(Math.random(), exp ? 2 : 0.5);
+                const t = Math.random() * Math.PI * 2, p = Math.acos((Math.random() * 2) - 1);
+                pos.push(r * Math.sin(p) * Math.cos(t), r * Math.sin(p) * Math.sin(t), r * Math.cos(p));
             }
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            nebulaSystem = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: 0.08, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending }));
-            nebulaSystem.userData = { vels, expanding };
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            nebulaSystem = new THREE.Points(geo, new THREE.PointsMaterial({ color, size: 0.08, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending }));
+            nebulaSystem.userData = { exp };
             rotationGroup.add(nebulaSystem);
         }
-
         function createExplosion() {
             const count = 2000;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(count * 3);
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
             const dirs = [];
-            for(let i=0; i<count; i++) {
-                dirs.push(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*8));
-            }
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            particleSystem = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffaa00, size: 0.1, transparent: true, blending: THREE.AdditiveBlending }));
+            for(let i=0; i<count; i++) dirs.push(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*8));
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            particleSystem = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffaa00, size: 0.1, transparent: true, blending: THREE.AdditiveBlending }));
             particleSystem.userData = { time: 0, dirs };
             rotationGroup.add(particleSystem);
         }
-
         function createBlackHole() {
             starObject = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
             rotationGroup.add(starObject);
@@ -488,57 +510,42 @@
             accretionDisk.rotation.x = Math.PI / 2.5;
             rotationGroup.add(accretionDisk);
         }
-
         function createPulsarBeams() {
-            const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.4, 15, 8), new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.4 }));
-            rotationGroup.add(beam);
+            rotationGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.4, 15, 8), new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.4 })));
             starObject.userData = { isPulsar: true };
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        function onWindowResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-
-            // Smooth rotation
             rotationGroup.rotation.y += (targetRotationY - rotationGroup.rotation.y) * 0.1;
             rotationGroup.rotation.x += (targetRotationX - rotationGroup.rotation.x) * 0.1;
 
             if (nebulaSystem) {
                 nebulaSystem.rotation.y += 0.002;
-                if (nebulaSystem.userData.expanding) {
+                if (nebulaSystem.userData.exp) {
                     const pos = nebulaSystem.geometry.attributes.position.array;
                     for(let i=0; i<pos.length; i++) pos[i] *= 1.01;
                     nebulaSystem.geometry.attributes.position.needsUpdate = true;
                     nebulaSystem.material.opacity *= 0.99;
                 }
             }
-
             if (starObject) {
                 starObject.rotation.y += 0.01;
                 if (starObject.userData.isPulsar) starObject.rotation.z += 0.1;
             }
-
             if (particleSystem) {
-                const pos = particleSystem.geometry.attributes.position.array;
-                const dirs = particleSystem.userData.dirs;
+                const pos = particleSystem.geometry.attributes.position.array, dirs = particleSystem.userData.dirs;
                 particleSystem.userData.time += delta;
                 for(let i=0; i<dirs.length; i++) {
-                    pos[i*3] += dirs[i].x * delta;
-                    pos[i*3+1] += dirs[i].y * delta;
-                    pos[i*3+2] += dirs[i].z * delta;
+                    pos[i*3] += dirs[i].x * delta; pos[i*3+1] += dirs[i].y * delta; pos[i*3+2] += dirs[i].z * delta;
                 }
                 particleSystem.geometry.attributes.position.needsUpdate = true;
                 particleSystem.material.opacity = Math.max(0, 1 - particleSystem.userData.time / 3);
             }
-
             if (accretionDisk) accretionDisk.rotation.z += 0.05;
-
             renderer.render(scene, camera);
         }
 
