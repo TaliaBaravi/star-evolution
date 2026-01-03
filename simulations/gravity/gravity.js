@@ -1,14 +1,31 @@
-    // --- Constants & Data ---
-        const PLANETS = {
-            earth: { name: "Earth", g: 9.81, color: 0x2b6cb0, gridColor: 0x4299e1 },
-            moon: { name: "The Moon", g: 1.62, color: 0x718096, gridColor: 0xa0aec0 },
-            jupiter: { name: "Jupiter", g: 24.79, color: 0xed8936, gridColor: 0xfbd38d }
+   const PLANETS = {
+            earth: { 
+                name: "Earth", g: 9.81, 
+                bgColor: 0x1a4a8a, fogColor: 0x0a192f, 
+                groundColor: 0x1a3a5a, gridColor: 0x3b82f6,
+                starSpeed: 0.2, starColor: 0xffffff,
+                surfaceType: 'earth'
+            },
+            moon: { 
+                name: "The Moon", g: 1.62, 
+                bgColor: 0x000000, fogColor: 0x000000, 
+                groundColor: 0x222222, gridColor: 0x444444,
+                starSpeed: 0.05, starColor: 0xcccccc,
+                surfaceType: 'moon'
+            },
+            jupiter: { 
+                name: "Jupiter", g: 24.79, 
+                bgColor: 0x2d1a0a, fogColor: 0x2d1a0a, 
+                groundColor: 0x4d3215, gridColor: 0xf59e0b,
+                starSpeed: 0.8, starColor: 0xffd8a8,
+                surfaceType: 'jupiter'
+            }
         };
 
         const OBJECTS = {
-            metal: { name: "Metal Ball", type: "sphere", radius: 0.4, color: 0x888888, metalness: 0.9 },
+            metal: { name: "Metal Ball", type: "sphere", radius: 0.7, color: 0x888888, metalness: 0.9, roughness: 0.1 },
             tennis: { name: "Tennis Ball", type: "sphere", radius: 0.4, color: 0xbada55, roughness: 0.8 },
-            feather: { name: "Feather", type: "plane", size: 0.8, color: 0xffffff }
+            feather: { name: "Feather", type: "custom", color: 0xffffff }
         };
 
         const START_HEIGHT = 10;
@@ -17,104 +34,184 @@
         let isFalling = false;
         let startTime = 0;
         let fallTime = 0;
+        let uiVisible = true;
 
-        // --- Three.js Setup ---
-        let scene, camera, renderer, objectMesh, ground, grid, light;
+        let scene, camera, renderer, objectMesh, ground, grid, starSystem, planetarySurface;
         let mouseX = 0, mouseY = 0;
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.Fog(0x050505, 5, 25);
+            scene.background = new THREE.Color(PLANETS.earth.bgColor);
+            scene.fog = new THREE.Fog(PLANETS.earth.fogColor, 10, 80);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 12);
-            camera.lookAt(0, 5, 0);
+            camera.position.set(-4, 8, 20);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambientLight);
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            mainLight.position.set(20, 30, 10);
+            scene.add(mainLight);
 
-            light = new THREE.PointLight(0xffffff, 1, 50);
-            light.position.set(10, 15, 10);
-            scene.add(light);
+            // Stars
+            createStars();
 
-            const hemiLight = new THREE.HemisphereLight(0x443333, 0x111122);
-            scene.add(hemiLight);
+            // The Platform (Floating in space/air)
+            const platGroup = new THREE.Group();
+            const platGeo = new THREE.CylinderGeometry(2.5, 2.7, 0.5, 32);
+            const platMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
+            const platform = new THREE.Mesh(platGeo, platMat);
+            platGroup.add(platform);
 
-            // Ground & Environment
-            const groundGeo = new THREE.PlaneGeometry(100, 100);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-            ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
+            // Visual base light under platform
+            const glowGeo = new THREE.CylinderGeometry(2.2, 2.2, 0.1, 32);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.4 });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            glow.position.y = -0.3;
+            platGroup.add(glow);
+            scene.add(platGroup);
 
-            grid = new THREE.GridHelper(40, 40, 0x333333, 0x222222);
+            // Grid (Transparent on top of atmosphere)
+            grid = new THREE.GridHelper(100, 40, 0x3b82f6, 0x111111);
+            grid.material.transparent = true;
+            grid.material.opacity = 0.2;
+            grid.position.y = 0.05;
             scene.add(grid);
 
-            // Platform
-            const platGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.2, 32);
-            const platMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-            const platform = new THREE.Mesh(platGeo, platMat);
-            platform.position.y = -0.1;
-            scene.add(platform);
-
             // Measurement Pole
-            const poleGeo = new THREE.BoxGeometry(0.1, START_HEIGHT, 0.1);
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+            const poleGeo = new THREE.BoxGeometry(0.15, START_HEIGHT, 0.15);
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5 });
             const pole = new THREE.Mesh(poleGeo, poleMat);
-            pole.position.set(-1.5, START_HEIGHT / 2, 0);
+            pole.position.set(-3.5, START_HEIGHT / 2, 0);
             scene.add(pole);
 
-            // Ticks on pole
             for(let i=0; i<=START_HEIGHT; i++) {
-                const tickGeo = new THREE.BoxGeometry(0.3, 0.02, 0.05);
-                const tick = new THREE.Mesh(tickGeo, poleMat);
-                tick.position.set(-1.5, i, 0.1);
+                const tick = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.1), poleMat);
+                tick.position.set(-3.5, i, 0.2);
                 scene.add(tick);
             }
+
+            // The Globe/Surface underneath
+            createPlanetarySurface();
 
             createObject();
             animate();
 
-            // Interactivity
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX - window.innerWidth / 2) / 200;
-                mouseY = (e.clientY - window.innerHeight / 2) / 200;
+                mouseX = (e.clientX - window.innerWidth / 2) / 400;
+                mouseY = (e.clientY - window.innerHeight / 2) / 400;
             });
-            window.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
-                mouseX = (touch.clientX - window.innerWidth / 2) / 200;
-            }, {passive: true});
+        }
+
+        function createStars() {
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 3000;
+            const posArray = new Float32Array(starCount * 3);
+            for(let i=0; i < starCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 200;
+            }
+            starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            starSystem = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 0.2, color: 0xffffff, transparent: true }));
+            scene.add(starSystem);
+        }
+
+        function generatePlanetaryTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            if (type === 'earth') {
+                ctx.fillStyle = '#1a4a8a'; // Ocean
+                ctx.fillRect(0, 0, 512, 512);
+                for(let i=0; i<30; i++) {
+                    ctx.fillStyle = '#2d5a27'; // Land
+                    ctx.beginPath();
+                    ctx.arc(Math.random()*512, Math.random()*512, Math.random()*80 + 20, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                // Clouds
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                for(let i=0; i<40; i++) {
+                    ctx.beginPath();
+                    ctx.arc(Math.random()*512, Math.random()*512, Math.random()*100, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            } else if (type === 'moon') {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, 0, 512, 512);
+                for(let i=0; i<100; i++) {
+                    ctx.fillStyle = '#444'; // Craters
+                    ctx.beginPath();
+                    ctx.arc(Math.random()*512, Math.random()*512, Math.random()*15, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#222';
+                    ctx.stroke();
+                }
+            } else if (type === 'jupiter') {
+                for(let i=0; i<10; i++) {
+                    ctx.fillStyle = i % 2 === 0 ? '#4d3215' : '#a67c52';
+                    ctx.fillRect(0, i * 51.2, 512, 51.2);
+                }
+                // Storm spots
+                ctx.fillStyle = '#7d2b14';
+                ctx.beginPath();
+                ctx.ellipse(256, 256, 100, 50, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            return tex;
+        }
+
+        function createPlanetarySurface() {
+            if (planetarySurface) scene.remove(planetarySurface);
+            
+            // A huge sphere far below to show curvature
+            const geo = new THREE.SphereGeometry(200, 64, 64);
+            const mat = new THREE.MeshStandardMaterial({ 
+                roughness: 1, 
+                metalness: 0,
+                map: generatePlanetaryTexture(PLANETS[currentPlanet].surfaceType)
+            });
+            planetarySurface = new THREE.Mesh(geo, mat);
+            planetarySurface.position.y = -200.5; // Surface is just below platform
+            scene.add(planetarySurface);
+        }
+
+        function toggleUI() {
+            uiVisible = !uiVisible;
+            document.getElementById('controls-panel').classList.toggle('collapsed', !uiVisible);
+        }
+
+        function createFeatherMesh() {
+            const group = new THREE.Group();
+            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.005, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0xe0e0e0 }));
+            group.add(shaft);
+            const shape = new THREE.Shape();
+            shape.moveTo(0, -0.7);
+            shape.bezierCurveTo(0.3, -0.5, 0.4, 0.2, 0, 0.7);
+            shape.bezierCurveTo(-0.4, 0.2, -0.3, -0.5, 0, -0.7);
+            const vane = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+            vane.rotation.y = 0.2;
+            group.add(vane);
+            return group;
         }
 
         function createObject() {
             if (objectMesh) scene.remove(objectMesh);
-
             const config = OBJECTS[currentObject];
-            let geometry;
-            
             if (config.type === 'sphere') {
-                geometry = new THREE.SphereGeometry(config.radius, 32, 32);
+                objectMesh = new THREE.Mesh(new THREE.SphereGeometry(config.radius, 32, 32), new THREE.MeshStandardMaterial({ color: config.color, metalness: config.metalness || 0, roughness: config.roughness || 0.5 }));
             } else {
-                // Feather as a curved plane
-                geometry = new THREE.PlaneGeometry(config.size, config.size);
+                objectMesh = createFeatherMesh();
             }
-
-            const material = new THREE.MeshStandardMaterial({ 
-                color: config.color, 
-                metalness: config.metalness || 0,
-                roughness: config.roughness || 0.5,
-                side: THREE.DoubleSide
-            });
-
-            objectMesh = new THREE.Mesh(geometry, material);
             resetObject();
             scene.add(objectMesh);
         }
@@ -125,44 +222,45 @@
             objectMesh.position.set(0, START_HEIGHT, 0);
             objectMesh.rotation.set(0,0,0);
             updateUIStats();
-            document.getElementById('drop-btn').innerText = "DROP OBJECT";
-            document.getElementById('drop-btn').className = "w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2";
+            document.getElementById('drop-btn').innerText = "DROP";
+            document.getElementById('drop-btn').classList.replace('bg-red-600', 'bg-blue-600');
         }
 
         function setObject(type) {
             currentObject = type;
-            ['metal', 'tennis', 'feather'].forEach(t => {
-                document.getElementById(`btn-${t}`).classList.remove('btn-active');
-            });
+            ['metal', 'tennis', 'feather'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('btn-active'));
             document.getElementById(`btn-${type}`).classList.add('btn-active');
             createObject();
         }
 
         function setPlanet(type) {
             currentPlanet = type;
-            const data = PLANETS[type];
-            ['earth', 'moon', 'jupiter'].forEach(t => {
-                document.getElementById(`btn-${t}`).classList.remove('btn-active');
-            });
+            const p = PLANETS[type];
+            ['earth', 'moon', 'jupiter'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('btn-active'));
             document.getElementById(`btn-${type}`).classList.add('btn-active');
             
-            // Visual Update
-            document.getElementById('planet-name').innerText = data.name + " System";
-            document.getElementById('gravity-val').innerText = data.g;
-            ground.material.color.setHex(data.color);
-            grid.material.color.setHex(data.gridColor);
+            document.getElementById('planet-name').innerText = p.name + " System";
+            document.getElementById('gravity-val').innerText = p.g;
             
+            scene.background.setHex(p.bgColor);
+            scene.fog.color.setHex(p.fogColor);
+            grid.material.color.setHex(p.gridColor);
+            starSystem.material.color.setHex(p.starColor);
+            
+            // Update Surface
+            planetarySurface.material.map = generatePlanetaryTexture(p.surfaceType);
+            planetarySurface.material.needsUpdate = true;
+
             resetObject();
         }
 
         function startDrop() {
-            if (isFalling) {
-                resetObject();
-            } else {
+            if (isFalling) resetObject();
+            else {
                 isFalling = true;
                 startTime = performance.now();
                 document.getElementById('drop-btn').innerText = "RESET";
-                document.getElementById('drop-btn').className = "w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2";
+                document.getElementById('drop-btn').classList.replace('bg-blue-600', 'bg-red-600');
             }
         }
 
@@ -179,41 +277,34 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            const time = performance.now() * 0.001;
 
-            // Subtle camera movement
-            camera.position.x += (mouseX - camera.position.x) * 0.05;
-            camera.position.y += (5 - mouseY - camera.position.y) * 0.05;
+            camera.position.x += ((-4 + mouseX * 2) - camera.position.x) * 0.05;
+            camera.position.y += (8 - mouseY * 2 - camera.position.y) * 0.05;
             camera.lookAt(0, 4, 0);
 
+            // Animate Planet Rotation
+            const p = PLANETS[currentPlanet];
+            planetarySurface.rotation.y += 0.0002;
+            starSystem.rotation.y += 0.0001 * p.starSpeed;
+
             if (isFalling) {
-                const now = performance.now();
-                fallTime = (now - startTime) / 1000;
-
-                const g = PLANETS[currentPlanet].g;
-                // Equation: y = y0 - 0.5 * g * t^2
-                let newY = START_HEIGHT - (0.5 * g * Math.pow(fallTime, 2));
-
-                if (newY <= 0.4) { // Hit ground radius approx
-                    newY = 0.4;
-                    isFalling = false;
-                    // Spark effect or sound could go here
-                }
-
+                fallTime = (performance.now() - startTime) / 1000;
+                let newY = START_HEIGHT - (0.5 * p.g * Math.pow(fallTime, 2));
+                const stopY = currentObject === 'feather' ? 0.7 : OBJECTS[currentObject].radius;
+                if (newY <= stopY) { newY = stopY; isFalling = false; }
                 objectMesh.position.y = newY;
-                
-                // Rotation visual for feather
                 if (currentObject === 'feather') {
-                    objectMesh.rotation.z = Math.sin(fallTime * 5) * 0.2;
-                    objectMesh.rotation.y += 0.02;
-                } else if (currentObject === 'tennis') {
-                    objectMesh.rotation.x += 0.05;
+                    objectMesh.rotation.z = Math.sin(fallTime * 4) * 0.6;
+                    objectMesh.rotation.x = Math.PI / 2 + Math.cos(fallTime * 2) * 0.4;
+                    objectMesh.rotation.y += 0.03;
+                } else {
+                    objectMesh.rotation.x += 0.08;
+                    objectMesh.rotation.z += 0.02;
                 }
-
                 updateUIStats();
             }
-
             renderer.render(scene, camera);
         }
 
-        // Initialize on load
         window.onload = init;
