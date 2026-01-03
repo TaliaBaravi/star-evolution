@@ -1,239 +1,219 @@
-    const canvas = document.getElementById('simCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        const envSelect = document.getElementById('env-select');
-        const objSelect = document.getElementById('obj-select');
-        const comparisonToggle = document.getElementById('comparison-toggle');
-        const dropBtn = document.getElementById('drop-btn');
-        const resetBtn = document.getElementById('reset-btn');
-        
-        const statTime = document.getElementById('stat-time');
-        const statVel = document.getElementById('stat-vel');
-        const statAcc = document.getElementById('stat-acc');
-        const statHeight = document.getElementById('stat-height');
-        
-        const mStatTime = document.getElementById('m-stat-time');
-        const mStatVel = document.getElementById('m-stat-vel');
-
-        const PIXELS_PER_METER = 100; 
-        let lastTime = 0;
-        let isRunning = false;
-        let particles = [];
-
-        const themes = {
-            earth: { sky: ['#87CEEB', '#E0F2FE'], ground: '#22c55e', groundLine: '#16a34a', particle: '#86efac' },
-            moon: { sky: ['#000000', '#0f172a'], ground: '#94a3b8', groundLine: '#64748b', particle: '#cbd5e1' },
-            jupiter: { sky: ['#A52A2A', '#F4A460'], ground: '#451a03', groundLine: '#270e01', particle: '#d97706' }
+    // --- Constants & Data ---
+        const PLANETS = {
+            earth: { name: "Earth", g: 9.81, color: 0x2b6cb0, gridColor: 0x4299e1 },
+            moon: { name: "The Moon", g: 1.62, color: 0x718096, gridColor: 0xa0aec0 },
+            jupiter: { name: "Jupiter", g: 24.79, color: 0xed8936, gridColor: 0xfbd38d }
         };
 
-        let params = { g: 9.81, rho: 1.225, mass: 1.0, area: 0.01, cd: 0.47, type: 'lead', theme: themes.earth };
-        let objectA = { y: 0, v: 0, a: 0, t: 0, landed: false, useDrag: true };
-        let objectB = { y: 0, v: 0, a: 0, t: 0, landed: false, useDrag: false };
+        const OBJECTS = {
+            metal: { name: "Metal Ball", type: "sphere", radius: 0.4, color: 0x888888, metalness: 0.9 },
+            tennis: { name: "Tennis Ball", type: "sphere", radius: 0.4, color: 0xbada55, roughness: 0.8 },
+            feather: { name: "Feather", type: "plane", size: 0.8, color: 0xffffff }
+        };
 
-        function updateEnvironment() {
-            const env = envSelect.value;
-            params.theme = themes[env];
+        const START_HEIGHT = 10;
+        let currentPlanet = 'earth';
+        let currentObject = 'metal';
+        let isFalling = false;
+        let startTime = 0;
+        let fallTime = 0;
+
+        // --- Three.js Setup ---
+        let scene, camera, renderer, objectMesh, ground, grid, light;
+        let mouseX = 0, mouseY = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.Fog(0x050505, 5, 25);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 12);
+            camera.lookAt(0, 5, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            light = new THREE.PointLight(0xffffff, 1, 50);
+            light.position.set(10, 15, 10);
+            scene.add(light);
+
+            const hemiLight = new THREE.HemisphereLight(0x443333, 0x111122);
+            scene.add(hemiLight);
+
+            // Ground & Environment
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+            ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            grid = new THREE.GridHelper(40, 40, 0x333333, 0x222222);
+            scene.add(grid);
+
+            // Platform
+            const platGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.2, 32);
+            const platMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+            const platform = new THREE.Mesh(platGeo, platMat);
+            platform.position.y = -0.1;
+            scene.add(platform);
+
+            // Measurement Pole
+            const poleGeo = new THREE.BoxGeometry(0.1, START_HEIGHT, 0.1);
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(-1.5, START_HEIGHT / 2, 0);
+            scene.add(pole);
+
+            // Ticks on pole
+            for(let i=0; i<=START_HEIGHT; i++) {
+                const tickGeo = new THREE.BoxGeometry(0.3, 0.02, 0.05);
+                const tick = new THREE.Mesh(tickGeo, poleMat);
+                tick.position.set(-1.5, i, 0.1);
+                scene.add(tick);
+            }
+
+            createObject();
+            animate();
+
+            // Interactivity
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - window.innerWidth / 2) / 200;
+                mouseY = (e.clientY - window.innerHeight / 2) / 200;
+            });
+            window.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                mouseX = (touch.clientX - window.innerWidth / 2) / 200;
+            }, {passive: true});
+        }
+
+        function createObject() {
+            if (objectMesh) scene.remove(objectMesh);
+
+            const config = OBJECTS[currentObject];
+            let geometry;
             
-            if (env === 'earth') { params.g = 9.81; params.rho = 1.225; }
-            else if (env === 'moon') { params.g = 1.62; params.rho = 0; }
-            else if (env === 'jupiter') { params.g = 24.79; params.rho = 0.5; }
-
-            const obj = objSelect.value;
-            params.type = obj;
-            if (obj === 'lead') { params.mass = 5.0; params.area = 0.005; params.cd = 0.47; }
-            else if (obj === 'feather') { params.mass = 0.005; params.area = 0.12; params.cd = 1.2; }
-            else { params.mass = 0.058; params.area = 0.004; params.cd = 0.5; }
-
-            document.getElementById('comparison-labels').classList.toggle('hidden', !comparisonToggle.checked);
-        }
-
-        function createImpact(x, velocity) {
-            const count = Math.min(Math.abs(velocity) * 2, 30);
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: x,
-                    y: canvas.height - 40,
-                    vx: (Math.random() - 0.5) * velocity * 0.4,
-                    vy: -Math.random() * velocity * 0.25,
-                    life: 1.0,
-                    color: params.theme.particle
-                });
-            }
-        }
-
-        function initSim() {
-            updateEnvironment();
-            const startY = 60;
-            objectA = { y: startY, v: 0, a: 0, t: 0, landed: false, useDrag: true };
-            objectB = { y: startY, v: 0, a: 0, t: 0, landed: false, useDrag: false };
-            particles = [];
-            isRunning = false;
-            render();
-        }
-
-        function drawBackground() {
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, params.theme.sky[0]);
-            gradient.addColorStop(0.8, params.theme.sky[1]);
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Ground
-            ctx.fillStyle = params.theme.ground;
-            ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-            ctx.strokeStyle = params.theme.groundLine;
-            ctx.lineWidth = 3;
-            ctx.strokeRect(-5, canvas.height - 40, canvas.width + 10, 4);
-        }
-
-        function drawLeadBall(x, y) {
-            const radius = window.innerWidth < 768 ? 10 : 15;
-            const grad = ctx.createRadialGradient(x - 3, y - 3, 2, x, y, radius);
-            grad.addColorStop(0, '#e2e8f0');
-            grad.addColorStop(1, '#1e293b');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-
-        function drawFeather(x, y, velocity) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(Math.sin(Date.now() / 200) * 0.15); 
-            const scale = window.innerWidth < 768 ? 0.7 : 1;
-            ctx.scale(scale, scale);
-            
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 8, 25, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.moveTo(0, -25);
-            ctx.lineTo(0, 30);
-            ctx.strokeStyle = '#cbd5e1';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        function drawTennisBall(x, y) {
-            const radius = window.innerWidth < 768 ? 8 : 12;
-            ctx.fillStyle = '#bef264';
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x - (radius*1.2), y, radius*1.2, -0.5, 0.5);
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-        }
-
-        function drawSprite(obj, x) {
-            if (params.type === 'lead') drawLeadBall(x, obj.y);
-            else if (params.type === 'feather') drawFeather(x, obj.y, obj.v);
-            else drawTennisBall(x, obj.y);
-        }
-
-        function calculatePhysics(obj, dt) {
-            if (obj.landed) return;
-
-            const Fg = params.mass * params.g;
-            let Fd = 0;
-            if (obj.useDrag) {
-                Fd = 0.5 * params.rho * Math.pow(obj.v, 2) * params.cd * params.area;
-            }
-
-            const Fnet = Fg - Fd;
-            obj.a = Fnet / params.mass;
-            obj.v += obj.a * dt;
-            obj.y += (obj.v * PIXELS_PER_METER) * dt;
-            obj.t += dt;
-
-            const offset = window.innerWidth < 768 ? 10 : 15;
-            const groundY = canvas.height - 40 - offset;
-            if (obj.y >= groundY) {
-                createImpact(canvas.width * (obj.useDrag ? (comparisonToggle.checked ? 0.25 : 0.5) : 0.75), obj.v);
-                obj.y = groundY;
-                obj.landed = true;
-            }
-        }
-
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.5;
-                p.life -= 0.025;
-                if (p.life <= 0) particles.splice(i, 1);
-                else {
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-            ctx.globalAlpha = 1;
-        }
-
-        function render(time = 0) {
-            const dt = Math.min((time - lastTime) / 1000, 0.032);
-            lastTime = time;
-
-            if (isRunning) {
-                calculatePhysics(objectA, dt);
-                if (comparisonToggle.checked) calculatePhysics(objectB, dt);
-            }
-
-            drawBackground();
-            updateParticles();
-
-            if (comparisonToggle.checked) {
-                drawSprite(objectA, canvas.width * 0.25);
-                drawSprite(objectB, canvas.width * 0.75);
+            if (config.type === 'sphere') {
+                geometry = new THREE.SphereGeometry(config.radius, 32, 32);
             } else {
-                drawSprite(objectA, canvas.width * 0.5);
+                // Feather as a curved plane
+                geometry = new THREE.PlaneGeometry(config.size, config.size);
             }
 
-            // Update stats (Desktop and Mobile)
-            const timeStr = objectA.t.toFixed(2);
-            const velStr = Math.abs(objectA.v).toFixed(2);
-            
-            statTime.textContent = timeStr;
-            statVel.textContent = velStr;
-            statAcc.textContent = objectA.a.toFixed(2);
-            statHeight.textContent = Math.max(0, (canvas.height - 55 - objectA.y) / PIXELS_PER_METER).toFixed(2);
-            
-            mStatTime.textContent = timeStr;
-            mStatVel.textContent = velStr;
+            const material = new THREE.MeshStandardMaterial({ 
+                color: config.color, 
+                metalness: config.metalness || 0,
+                roughness: config.roughness || 0.5,
+                side: THREE.DoubleSide
+            });
 
-            if (isRunning || particles.length > 0) requestAnimationFrame(render);
+            objectMesh = new THREE.Mesh(geometry, material);
+            resetObject();
+            scene.add(objectMesh);
         }
 
-        dropBtn.addEventListener('click', () => {
-            if (objectA.landed) initSim();
-            isRunning = true;
-            lastTime = performance.now();
-            requestAnimationFrame(render);
-        });
+        function resetObject() {
+            isFalling = false;
+            fallTime = 0;
+            objectMesh.position.set(0, START_HEIGHT, 0);
+            objectMesh.rotation.set(0,0,0);
+            updateUIStats();
+            document.getElementById('drop-btn').innerText = "DROP OBJECT";
+            document.getElementById('drop-btn').className = "w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2";
+        }
 
-        resetBtn.addEventListener('click', initSim);
-        envSelect.addEventListener('change', initSim);
-        objSelect.addEventListener('change', initSim);
-        comparisonToggle.addEventListener('change', initSim);
+        function setObject(type) {
+            currentObject = type;
+            ['metal', 'tennis', 'feather'].forEach(t => {
+                document.getElementById(`btn-${t}`).classList.remove('btn-active');
+            });
+            document.getElementById(`btn-${type}`).classList.add('btn-active');
+            createObject();
+        }
 
-        const resize = () => {
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
-            initSim();
-        };
+        function setPlanet(type) {
+            currentPlanet = type;
+            const data = PLANETS[type];
+            ['earth', 'moon', 'jupiter'].forEach(t => {
+                document.getElementById(`btn-${t}`).classList.remove('btn-active');
+            });
+            document.getElementById(`btn-${type}`).classList.add('btn-active');
+            
+            // Visual Update
+            document.getElementById('planet-name').innerText = data.name + " System";
+            document.getElementById('gravity-val').innerText = data.g;
+            ground.material.color.setHex(data.color);
+            grid.material.color.setHex(data.gridColor);
+            
+            resetObject();
+        }
 
-        window.addEventListener('resize', resize);
-        window.onload = resize;
+        function startDrop() {
+            if (isFalling) {
+                resetObject();
+            } else {
+                isFalling = true;
+                startTime = performance.now();
+                document.getElementById('drop-btn').innerText = "RESET";
+                document.getElementById('drop-btn').className = "w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2";
+            }
+        }
+
+        function updateUIStats() {
+            document.getElementById('height-val').innerText = Math.max(0, objectMesh.position.y).toFixed(1);
+            document.getElementById('time-val').innerText = fallTime.toFixed(2);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Subtle camera movement
+            camera.position.x += (mouseX - camera.position.x) * 0.05;
+            camera.position.y += (5 - mouseY - camera.position.y) * 0.05;
+            camera.lookAt(0, 4, 0);
+
+            if (isFalling) {
+                const now = performance.now();
+                fallTime = (now - startTime) / 1000;
+
+                const g = PLANETS[currentPlanet].g;
+                // Equation: y = y0 - 0.5 * g * t^2
+                let newY = START_HEIGHT - (0.5 * g * Math.pow(fallTime, 2));
+
+                if (newY <= 0.4) { // Hit ground radius approx
+                    newY = 0.4;
+                    isFalling = false;
+                    // Spark effect or sound could go here
+                }
+
+                objectMesh.position.y = newY;
+                
+                // Rotation visual for feather
+                if (currentObject === 'feather') {
+                    objectMesh.rotation.z = Math.sin(fallTime * 5) * 0.2;
+                    objectMesh.rotation.y += 0.02;
+                } else if (currentObject === 'tennis') {
+                    objectMesh.rotation.x += 0.05;
+                }
+
+                updateUIStats();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize on load
+        window.onload = init;
