@@ -3,28 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>חוקר כוח המשיכה 3D</title>
+    <title>חוקר כוח המשיכה - מסע לימודי</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; color: white; touch-action: manipulation; }
         canvas { display: block; }
         .glass {
-            background: rgba(10, 10, 10, 0.7);
+            background: rgba(10, 10, 10, 0.85);
             backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 16px;
         }
         .btn-active {
             background: #3b82f6 !important;
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
-            border-color: rgba(255,255,255,0.5) !important;
+            border-color: rgba(255,255,255,0.6) !important;
             color: white !important;
+            font-weight: bold;
         }
-        .btn-off {
-            background: rgba(239, 68, 68, 0.2) !important;
-            border-color: rgba(239, 68, 68, 0.4) !important;
-            color: #f87171 !important;
+        .btn-disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            filter: grayscale(1);
+        }
+        .btn-group-disabled {
+            opacity: 0.4;
+            pointer-events: none;
         }
         .hud-top { 
             position: absolute; 
@@ -35,33 +40,60 @@
             pointer-events: none; 
             z-index: 10;
         }
+        .level-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            padding: 8px 16px;
+            border-right: 4px solid #3b82f6;
+        }
         .hud-side { 
             position: absolute; 
             left: 20px; 
             top: 50%; 
             transform: translateY(-50%); 
-            width: 140px; 
+            width: 150px; 
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 10;
         }
         .hud-side.collapsed {
             transform: translateY(-50%) translateX(calc(-100% + 30px));
         }
-        
-        /* עיצוב חדש לתיבת הקריין בתחתית המסך */
         .hud-bottom-narrator {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
             z-index: 10;
-            pointer-events: none;
+        }
+        
+        /* Next Level Button Pulse Animation */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); transform: scale(1); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); transform: scale(1.05); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1); }
+        }
+        
+        .next-level-btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            animation: pulse-green 2s infinite;
+            border: 2px solid #86efac;
         }
 
-        .stats { font-family: monospace; }
-        
+        .skip-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .skip-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
         .toggle-btn {
             position: absolute;
             right: -25px;
@@ -81,33 +113,34 @@
         }
 
         #narrator-container {
-            padding: 14px;
-            /* רקע כהה יותר לשיפור הקריאות */
-            background: rgba(0, 0, 0, 0.85);
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.9);
             border-bottom: 3px solid #3b82f6;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.5s ease-out;
-            text-align: center;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
         }
 
         @media (max-width: 640px) {
-            .hud-side { width: 110px; left: 10px; }
-            .hud-top { right: 10px; top: 10px; min-width: 150px; }
-            .hud-bottom-narrator { bottom: 10px; width: 95%; }
+            .hud-side { width: 120px; left: 10px; }
+            .hud-top { right: 10px; top: 10px; min-width: 140px; transform: scale(0.9); transform-origin: top right; }
+            .level-badge { left: 10px; top: 10px; transform: scale(0.9); transform-origin: top left; }
+            .hud-bottom-narrator { bottom: 10px; width: 96%; }
         }
     </style>
 </head>
 <body>
 
-    <!-- HUD עליון - סטטיסטיקה בלבד -->
+    <!-- תגית שלב -->
+    <div class="level-badge glass flex flex-col items-start">
+        <span class="text-[10px] text-gray-400 uppercase tracking-widest">שלב נוכחי</span>
+        <span id="level-title" class="text-lg font-bold text-white leading-none mt-1">שלב 1</span>
+        <span id="level-subtitle" class="text-[10px] text-blue-400 mt-1">מרוץ הכוכבים</span>
+    </div>
+
+    <!-- HUD עליון - סטטיסטיקה -->
     <div class="hud-top glass p-3 text-right">
-        <h1 class="text-sm font-bold tracking-wider mb-1">חוקר כוח המשיכה</h1>
-        <p id="planet-name" class="text-blue-400 font-semibold uppercase text-[10px]">מערכת כדור הארץ</p>
+        <h1 class="text-sm font-bold tracking-wider mb-1">נתוני טיסה</h1>
+        <p id="planet-name-display" class="text-blue-400 font-semibold uppercase text-[10px]">מערכת כדור הארץ</p>
         
         <div class="stats text-[10px] mt-2 flex flex-col gap-1 opacity-80">
             <div>כבידה: <span id="gravity-val">9.81</span> מ'/שנ²</div>
@@ -116,41 +149,54 @@
         </div>
     </div>
 
-    <!-- תיבת קריין תחתונה -->
-    <div class="hud-bottom-narrator">
-        <div id="narrator-container" class="glass rounded-xl">
-            <p id="narrator-text" class="text-xs sm:text-sm leading-relaxed font-medium text-white italic">
-                הסימולציה מוכנה. בחר אובייקט ועולם והתחל בניסוי!
+    <!-- אזור הוראות ומשוב (למטה) -->
+    <div class="hud-bottom-narrator flex flex-col gap-2 items-center">
+        
+        <div class="flex gap-2 items-center justify-center w-full">
+            <!-- כפתור דלג (מופיע כל עוד לא סיימו, למעט בשלב האחרון) -->
+            <button id="btn-skip-level" onclick="skipLevel()" class="skip-btn text-[11px] py-1.5 px-4 rounded-full mb-1 transition-colors">
+                דלג לשלב הבא &#8608;
+            </button>
+
+            <!-- כפתור שלב הבא (מוסתר בהתחלה) -->
+            <button id="btn-next-level" onclick="nextLevel()" class="hidden next-level-btn text-white font-bold py-2 px-6 rounded-full shadow-lg text-sm mb-2 transition-transform hover:scale-105">
+                המשך לשלב הבא &#8592;
+            </button>
+        </div>
+
+        <div id="narrator-container" class="glass rounded-xl w-full text-center">
+            <p id="narrator-text" class="text-sm sm:text-base leading-relaxed font-medium text-white">
+                טוען סימולציה...
             </p>
         </div>
     </div>
 
-    <!-- תפריט צד -->
-    <div id="controls-panel" class="hud-side glass p-3 flex flex-col gap-4 text-center">
+    <!-- תפריט צד (פקדים) -->
+    <div id="controls-panel" class="hud-side glass p-3 flex flex-col gap-3 text-center">
         <button class="toggle-btn" onclick="toggleUI()">תפריט</button>
         
-        <div class="flex flex-col gap-1">
+        <div id="group-objects" class="flex flex-col gap-1 transition-opacity duration-300">
             <span class="text-[9px] font-bold uppercase opacity-60">אובייקט</span>
-            <button onclick="setObject('metal')" id="btn-metal" class="w-full py-2 glass text-[10px] rounded-lg transition btn-active">כדור מתכת</button>
+            <button onclick="setObject('metal')" id="btn-metal" class="w-full py-2 glass text-[10px] rounded-lg transition">כדור מתכת</button>
             <button onclick="setObject('tennis')" id="btn-tennis" class="w-full py-2 glass text-[10px] rounded-lg transition">כדור טניס</button>
             <button onclick="setObject('feather')" id="btn-feather" class="w-full py-2 glass text-[10px] rounded-lg transition">נוצה</button>
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div id="group-planets" class="flex flex-col gap-1 transition-opacity duration-300">
             <span class="text-[9px] font-bold uppercase opacity-60">עולם</span>
             <button onclick="setPlanet('moon')" id="btn-moon" class="w-full py-2 glass text-[10px] rounded-lg transition">ירח</button>
-            <button onclick="setPlanet('earth')" id="btn-earth" class="w-full py-2 glass text-[10px] rounded-lg transition btn-active">כדור הארץ</button>
+            <button onclick="setPlanet('earth')" id="btn-earth" class="w-full py-2 glass text-[10px] rounded-lg transition">כדור הארץ</button>
             <button onclick="setPlanet('jupiter')" id="btn-jupiter" class="w-full py-2 glass text-[10px] rounded-lg transition">צדק</button>
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div id="group-physics" class="flex flex-col gap-1 transition-opacity duration-300">
             <span class="text-[9px] font-bold uppercase opacity-60">פיזיקה</span>
-            <button onclick="toggleDrag()" id="btn-drag-toggle" class="w-full py-2 glass text-[10px] rounded-lg transition btn-active">
-                התנגדות אוויר: פעילה
+            <button onclick="toggleDrag()" id="btn-drag-toggle" class="w-full py-2 glass text-[10px] rounded-lg transition">
+                התנגדות אוויר
             </button>
         </div>
 
-        <button id="drop-btn" onclick="startDrop()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition shadow-lg text-[10px] uppercase tracking-widest mt-2">
+        <button id="drop-btn" onclick="startDrop()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg text-[11px] uppercase tracking-widest mt-1">
             הפל!
         </button>
     </div>
