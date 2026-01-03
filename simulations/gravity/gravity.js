@@ -14,7 +14,7 @@
                 surfaceType: 'moon'
             },
             jupiter: { 
-                name: "צדק", g: 24.79, rho: 0.16, 
+                name: "צדק", g: 24.79, rho: 5.0, 
                 bgColor: 0x2d1a0a, fogColor: 0x2d1a0a, 
                 groundColor: 0x4d3215, gridColor: 0xf59e0b,
                 starSpeed: 0.8, starColor: 0xffd8a8,
@@ -53,10 +53,52 @@
         let scene, camera, renderer, objectMesh, ground, grid, starSystem, planetarySurface;
         let mouseX = 0, mouseY = 0;
 
+        function updateNarrator() {
+            const el = document.getElementById('narrator-text');
+            const container = document.getElementById('narrator-container');
+            let message = "";
+
+            if (!dragEnabled) {
+                if (currentPlanet === 'moon') {
+                    message = "על הירח הכבידה חלשה מאוד – תראו איך כולם צונחים למטה לאט וביחד!";
+                } else if (currentPlanet === 'earth') {
+                    message = "בלי אוויר שיפריע, אפילו הנוצה והמשקולת מגיעות לרצפה בדיוק באותו זמן.";
+                } else if (currentPlanet === 'jupiter') {
+                    message = "צדק הוא ענק! הכבידה החזקה שלו מושכת את כל העצמים למטה במהירות אדירה.";
+                }
+            } else {
+                if (currentPlanet === 'earth') {
+                    if (currentObject === 'feather') {
+                        message = "האוויר מחזיק את הנוצה הרחבה, והיא מתנדנדת לה לאט עד הרצפה.";
+                    } else if (currentObject === 'tennis') {
+                        message = "לכדור יש קצת התנגדות, אבל הוא עדיין נופל די מהר.";
+                    } else {
+                        message = "הכדור כבד וקטן, האוויר כמעט לא מצליח לעצור אותו והוא נופל מהר.";
+                    }
+                } else if (currentPlanet === 'moon') {
+                    if (currentObject === 'feather') {
+                        message = "הכבידה כל כך חלשה והאוויר מפריע, שהנוצה כמעט מרחפת במקום!";
+                    } else {
+                        message = "גם עם אוויר, הכדורים נופלים, אבל הרבה יותר לאט מאשר בכדור הארץ.";
+                    }
+                } else if (currentPlanet === 'jupiter') {
+                    if (currentObject === 'feather') {
+                        message = "אפילו שהאוויר מנסה להתנגד, הכבידה של צדק חזקה מדי והנוצה נופלת מהר!";
+                    } else {
+                        message = "שום דבר לא עוצר אותו – הכבידה של צדק מושכת אותו כמו טיל למטה.";
+                    }
+                }
+            }
+
+            el.innerText = message;
+            container.style.animation = 'none';
+            container.offsetHeight; 
+            container.style.animation = null;
+        }
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(PLANETS.earth.bgColor);
-            // Initial fog
             scene.fog = new THREE.Fog(PLANETS.earth.fogColor, 10, 50);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -111,7 +153,8 @@
 
             createPlanetarySurface();
             createObject();
-            updateVisuals(); // Apply initial fog settings
+            updateVisuals(); 
+            updateNarrator();
             animate();
 
             window.addEventListener('resize', onWindowResize);
@@ -185,15 +228,11 @@
         function updateVisuals() {
             if (!scene.fog) return;
             const p = PLANETS[currentPlanet];
-            
-            // If air resistance is ON and the planet actually has air density > 0
             if (dragEnabled && p.rho > 0) {
-                // Dense air: pull fog closer
                 scene.fog.near = 5;
-                scene.fog.far = 45;
-                grid.material.opacity = 0.3;
+                scene.fog.far = Math.max(20, 60 - (p.rho * 5));
+                grid.material.opacity = Math.min(0.5, 0.1 + p.rho * 0.1);
             } else {
-                // Vacuum/No air: push fog far away for crystal clear view
                 scene.fog.near = 50;
                 scene.fog.far = 300;
                 grid.material.opacity = 0.1;
@@ -213,6 +252,7 @@
                 btn.classList.add('btn-off');
             }
             updateVisuals();
+            updateNarrator();
         }
 
         function createFeatherMesh() {
@@ -259,6 +299,7 @@
             updateUIStats();
             document.getElementById('drop-btn').innerText = "הפל!";
             document.getElementById('drop-btn').classList.replace('bg-red-600', 'bg-blue-600');
+            updateNarrator();
         }
 
         function setObject(type) {
@@ -266,6 +307,7 @@
             ['metal', 'tennis', 'feather'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('btn-active'));
             document.getElementById(`btn-${type}`).classList.add('btn-active');
             createObject();
+            updateNarrator();
         }
 
         function setPlanet(type) {
@@ -287,6 +329,7 @@
 
             updateVisuals();
             resetObject();
+            updateNarrator();
         }
 
         function startDrop() {
