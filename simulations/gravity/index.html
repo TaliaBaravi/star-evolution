@@ -1,121 +1,74 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מעבדת פיזיקה אינטראקטיבית</title>
+    <title>Gravity Explorer 3D</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background-color: #020617;
-            color: #f8fafc;
-            font-family: system-ui, -apple-system, sans-serif;
-            overflow: hidden;
-            touch-action: none;
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050505; color: white; touch-action: manipulation; }
+        canvas { display: block; }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
         }
-        canvas {
-            cursor: crosshair;
+        .btn-active {
+            background: #3b82f6 !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
         }
-        .control-panel {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(16px);
-            z-index: 50;
-            transition: transform 0.3s ease-in-out;
+        .hud-top { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; text-align: center; pointer-events: none; }
+        .hud-bottom { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 600px; }
+        .stats { font-family: monospace; }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
-        .stats-box {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        /* Mobile specific styles */
-        @media (max-width: 768px) {
-            .control-panel {
-                width: 100% !important;
-                height: 40%;
-                border-l: none;
-                border-t: 1px solid rgba(255, 255, 255, 0.1);
-                position: absolute;
-                bottom: 0;
-                left: 0;
-            }
-            .main-content {
-                height: 60%;
-            }
-        }
+        .falling-indicator { animation: pulse 1s infinite; }
     </style>
 </head>
-<body class="flex flex-col md:flex-row h-screen overflow-hidden">
+<body>
 
-    <!-- Sidebar / Bottom Controls -->
-    <div class="control-panel w-full md:w-80 p-4 md:p-6 flex flex-col gap-4 md:gap-6 border-l border-slate-800 overflow-y-auto shadow-2xl shrink-0">
-        <div class="border-b border-slate-700 pb-2 md:pb-4 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl md:text-2xl font-black text-blue-400 leading-tight">מעבדת נפילה</h1>
-                <p class="text-[10px] md:text-xs text-slate-400">סימולציית כבידה והתנגדות אוויר</p>
-            </div>
-            <!-- Stats for Mobile (compact) -->
-            <div id="stats-compact" class="md:hidden flex gap-3 text-[11px] font-mono">
-                <div class="flex flex-col"><span class="text-slate-500">זמן</span><span id="m-stat-time">0.00</span></div>
-                <div class="flex flex-col"><span class="text-slate-500">מהירות</span><span id="m-stat-vel">0.00</span></div>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-2 md:grid-cols-1 gap-3 md:gap-6">
-            <!-- Environment Selection -->
-            <section>
-                <label class="block text-xs font-semibold mb-1 text-slate-300">סביבה</label>
-                <select id="env-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 md:p-3 text-sm text-white outline-none">
-                    <option value="earth">כדור הארץ (g=9.81)</option>
-                    <option value="moon">ירח (ריק, g=1.62)</option>
-                    <option value="jupiter">צדק (סמיך, g=24.79)</option>
-                </select>
-            </section>
-
-            <!-- Object Selection -->
-            <section>
-                <label class="block text-xs font-semibold mb-1 text-slate-300">עצם נופל</label>
-                <select id="obj-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 md:p-3 text-sm text-white outline-none">
-                    <option value="lead">כדור עופרת (כבד)</option>
-                    <option value="feather">נוצה (קלה)</option>
-                    <option value="tennis">כדור טניס</option>
-                </select>
-            </section>
-        </div>
-
-        <!-- Comparison Toggle -->
-        <section class="flex items-center gap-3 p-2 bg-slate-800/50 rounded-lg border border-slate-700">
-            <input type="checkbox" id="comparison-toggle" class="w-4 h-4 accent-blue-500 cursor-pointer">
-            <label for="comparison-toggle" class="text-xs md:text-sm font-medium cursor-pointer">מצב השוואה (ריק vs אוויר)</label>
-        </section>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2 md:flex-col mt-auto">
-            <button id="drop-btn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 md:py-4 rounded-xl shadow-lg transition-all active:scale-95 text-md">
-                שחרר (Drop)
-            </button>
-            <button id="reset-btn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-4 py-2 rounded-lg transition-all text-sm">
-                איפוס
-            </button>
-        </div>
-
-        <!-- Desktop Real-time Stats -->
-        <div id="stats" class="hidden md:block stats-box p-4 rounded-xl font-mono text-sm space-y-3">
-            <div class="flex justify-between items-center"><span class="text-slate-400">זמן:</span> <span id="stat-time" class="text-blue-300 font-bold">0.00</span><span class="text-[10px]">s</span></div>
-            <div class="flex justify-between items-center"><span class="text-slate-400">מהירות:</span> <span id="stat-vel" class="text-blue-300 font-bold">0.00</span><span class="text-[10px]">m/s</span></div>
-            <div class="flex justify-between items-center"><span class="text-slate-400">תאוצה:</span> <span id="stat-acc" class="text-blue-300 font-bold">0.00</span><span class="text-[10px]">m/s²</span></div>
-            <div class="flex justify-between items-center"><span class="text-slate-400">גובה:</span> <span id="stat-height" class="text-blue-300 font-bold">0.00</span><span class="text-[10px]">m</span></div>
+    <!-- UI Overlay -->
+    <div class="hud-top glass p-4">
+        <h1 class="text-xl font-bold tracking-wider mb-1">GRAVITY EXPLORER</h1>
+        <p id="planet-name" class="text-blue-400 font-semibold uppercase text-sm">Earth System</p>
+        <div class="stats text-xs mt-2 flex justify-around">
+            <div>Gravity: <span id="gravity-val">9.81</span> m/s²</div>
+            <div>Height: <span id="height-val">10.0</span> m</div>
+            <div>Time: <span id="time-val">0.00</span> s</div>
         </div>
     </div>
 
-    <!-- Main Simulation Area -->
-    <main class="main-content flex-1 relative overflow-hidden">
-        <canvas id="simCanvas" class="w-full h-full"></canvas>
-        
-        <!-- Comparison Labels -->
-        <div id="comparison-labels" class="hidden absolute top-4 md:top-8 left-0 right-0 flex justify-around pointer-events-none px-4">
-            <div class="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-[10px] md:text-sm text-white font-bold">עם אוויר</div>
-            <div class="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-[10px] md:text-sm text-white font-bold">בוואקום</div>
+    <div class="hud-bottom glass p-4 flex flex-col gap-4">
+        <!-- Object Selection -->
+        <div class="flex justify-between items-center gap-2">
+            <span class="text-xs font-bold uppercase w-16">Object:</span>
+            <div class="flex flex-1 gap-2">
+                <button onclick="setObject('metal')" id="btn-metal" class="flex-1 py-2 glass text-xs rounded-lg transition btn-active">Metal Ball</button>
+                <button onclick="setObject('tennis')" id="btn-tennis" class="flex-1 py-2 glass text-xs rounded-lg transition">Tennis Ball</button>
+                <button onclick="setObject('feather')" id="btn-feather" class="flex-1 py-2 glass text-xs rounded-lg transition">Feather</button>
+            </div>
         </div>
-    </main>
+
+        <!-- Planet Selection -->
+        <div class="flex justify-between items-center gap-2">
+            <span class="text-xs font-bold uppercase w-16">World:</span>
+            <div class="flex flex-1 gap-2">
+                <button onclick="setPlanet('earth')" id="btn-earth" class="flex-1 py-2 glass text-xs rounded-lg transition btn-active">Earth</button>
+                <button onclick="setPlanet('moon')" id="btn-moon" class="flex-1 py-2 glass text-xs rounded-lg transition">Moon</button>
+                <button onclick="setPlanet('jupiter')" id="btn-jupiter" class="flex-1 py-2 glass text-xs rounded-lg transition">Jupiter</button>
+            </div>
+        </div>
+
+        <!-- Drop Button -->
+        <button id="drop-btn" onclick="startDrop()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2">
+            DROP OBJECT
+        </button>
+    </div>
 
     <script src="gravity.js"></script>
 </body>
