@@ -49,7 +49,8 @@
             osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 2.0);
             g.gain.setValueAtTime(0.3, audioCtx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.0);
-            osc.connect(g); g.connect(masterGain);
+            osc.connect(g);
+            g.connect(masterGain);
             osc.start(); osc.stop(audioCtx.currentTime + 2.0);
         }
 
@@ -83,31 +84,32 @@
         }
 
         // --- ONBOARDING LOGIC ---
-        let onboardingStep = 0; // 0: Start, 1: Timeline clicked, 2: Main Sequence reached, 3: Slider moved
+        let onboardingStep = 0; 
         
         function positionTips() {
-            // Tip 1: Timeline
-            const step2 = document.querySelectorAll('.timeline-step')[1];
-            if (step2 && onboardingStep === 0) {
-                const rect = step2.getBoundingClientRect();
+            // Tip 1: Timeline (Points DOWN)
+            const steps = document.querySelectorAll('.timeline-step');
+            if (steps.length > 1 && onboardingStep === 0) {
+                const rect = steps[1].getBoundingClientRect();
                 const tip = document.getElementById('tip-timeline');
                 tip.style.left = (rect.left + rect.width/2 - 100) + 'px';
                 tip.style.top = (rect.top - 110) + 'px';
                 tip.classList.add('show');
             }
 
-            // Tip 2: Mass Slider (Updated to point UP from below)
+            // Tip 2: Mass Slider (Points UP)
             const slider = document.getElementById('massInput');
             if (slider && onboardingStep === 2) {
                 const rect = slider.getBoundingClientRect();
                 const tip = document.getElementById('tip-mass');
-                // Place it below the slider
+                const arrow = document.getElementById('mass-arrow');
+                
+                // Update SVG path to point UP directly
+                arrow.querySelector('path').setAttribute('d', 'M12 3l12 18h-24z');
+                
                 tip.style.left = (rect.left + rect.width/2 - 100) + 'px';
-                tip.style.top = (rect.bottom + 15) + 'px';
-                // Reverse order so Arrow is above Bubble
-                tip.style.flexDirection = 'column-reverse';
-                // Point arrow UP
-                tip.querySelector('.bouncing-arrow').style.transform = 'rotate(180deg)';
+                tip.style.top = (rect.bottom + 20) + 'px';
+                tip.style.flexDirection = 'column'; // Arrow first, then bubble
                 tip.classList.add('show');
             }
         }
