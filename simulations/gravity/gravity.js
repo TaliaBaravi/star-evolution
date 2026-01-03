@@ -1,4 +1,52 @@
-    const PLANETS = {
+    // --- קונפיגורציית משחק ושלבים ---
+        const LEVELS = [
+            {
+                id: 1,
+                title: "שלב 1: מרוץ הכוכבים",
+                subtitle: "איפה נופלים הכי מהר?",
+                initialInstruction: "לפניכם כדור טניס זהה בשלושה כוכבים שונים.<br>נסו לנחש: <b>באיזה כוכב הכדור יפגע ברצפה ראשון?</b>",
+                lockedObject: 'tennis',
+                lockedDrag: false, // כבוי
+                lockedPlanet: null, // פתוח
+                hideDrag: true
+            },
+            {
+                id: 2,
+                title: "שלב 2: מי עוצר את הנוצה?",
+                subtitle: "חיכוך ותעופה",
+                initialInstruction: "חזרנו לכדור הארץ! סביבנו יש אוויר.<br>בחרו חפץ ובדקו: <b>למי האוויר הכי מפריע ליפול?</b>",
+                lockedObject: null, // פתוח
+                lockedDrag: true, // פעיל תמיד (אוויר)
+                lockedPlanet: 'earth', // נעול לכדור הארץ
+                hideDrag: true // המשתמש לא יכול לכבות את האוויר
+            },
+            {
+                id: 3,
+                title: "שלב 3: הניסוי על הירח",
+                subtitle: "מה קורה כשאין אוויר?",
+                initialInstruction: "טסנו לירח! כאן אין אוויר בכלל.<br><b>מה יקרה לנוצה בלי האוויר שיחזיק אותה?</b>",
+                lockedObject: null, // פתוח
+                lockedDrag: false, // כבוי (ריק)
+                lockedPlanet: 'moon',
+                hideDrag: true // נסתיר כי זה לא רלוונטי בריק
+            },
+            {
+                id: 4,
+                title: "המעבדה החופשית",
+                subtitle: "שלב 4",
+                initialInstruction: "כל הכפתורים פתוחים! עכשיו אתם המדענים. נסו ליצור את הנפילה הכי איטית והכי מהירה.<br><span class='text-yellow-300 text-xs mt-2 block font-bold'>אתגר: האם תצליחו לגרום לנוצה ליפול הכי לאט שאפשר?</span>",
+                lockedObject: null,
+                lockedDrag: null, // הכל פתוח
+                lockedPlanet: null,
+                hideDrag: false
+            }
+        ];
+
+        let currentLevelIndex = 0;
+        let levelCompleted = false; // האם בוצעה פעולה המאפשרת מעבר שלב
+
+        // --- קבועים ומשתנים קיימים ---
+        const PLANETS = {
             earth: { 
                 name: "כדור הארץ", g: 9.81, rho: 1.225, 
                 bgColor: 0x1a4a8a, fogColor: 0x0a192f, 
@@ -46,55 +94,171 @@
         let fallTime = 0;
         let lastFrameTime = 0;
         let uiVisible = true;
-
         let currentY = START_HEIGHT;
         let currentVel = 0;
 
         let scene, camera, renderer, objectMesh, ground, grid, starSystem, planetarySurface;
         let mouseX = 0, mouseY = 0;
 
-        function updateNarrator() {
-            const el = document.getElementById('narrator-text');
-            const container = document.getElementById('narrator-container');
-            let message = "";
+        // --- לוגיקת שלבים ---
 
-            if (!dragEnabled) {
-                if (currentPlanet === 'moon') {
-                    message = "על הירח הכבידה חלשה מאוד – תראו איך כולם צונחים למטה לאט וביחד!";
-                } else if (currentPlanet === 'earth') {
-                    message = "בלי אוויר שיפריע, אפילו הנוצה והמשקולת מגיעות לרצפה בדיוק באותו זמן.";
-                } else if (currentPlanet === 'jupiter') {
-                    message = "צדק הוא ענק! הכבידה החזקה שלו מושכת את כל העצמים למטה במהירות אדירה.";
-                }
+        function loadLevel(index) {
+            currentLevelIndex = index;
+            const level = LEVELS[index];
+            levelCompleted = false;
+
+            // עדכון UI עליון
+            document.getElementById('level-title').innerText = level.title;
+            document.getElementById('level-subtitle').innerText = level.subtitle;
+            document.getElementById('narrator-text').innerHTML = level.initialInstruction;
+            
+            // ניהול כפתורי ניווט
+            const nextBtn = document.getElementById('btn-next-level');
+            const skipBtn = document.getElementById('btn-skip-level');
+            
+            // איפוס כפתורים
+            nextBtn.classList.add('hidden');
+            
+            // אם זה לא השלב האחרון (4), הצג כפתור דילוג
+            if (level.id !== 4) {
+                skipBtn.classList.remove('hidden');
             } else {
-                if (currentPlanet === 'earth') {
-                    if (currentObject === 'feather') {
-                        message = "האוויר מחזיק את הנוצה הרחבה, והיא מתנדנדת לה לאט עד הרצפה.";
-                    } else if (currentObject === 'tennis') {
-                        message = "לכדור יש קצת התנגדות, אבל הוא עדיין נופל די מהר.";
-                    } else {
-                        message = "הכדור כבד וקטן, האוויר כמעט לא מצליח לעצור אותו והוא נופל מהר.";
-                    }
-                } else if (currentPlanet === 'moon') {
-                    if (currentObject === 'feather') {
-                        message = "הכבידה כל כך חלשה והאוויר מפריע, שהנוצה כמעט מרחפת במקום!";
-                    } else {
-                        message = "גם עם אוויר, הכדורים נופלים, אבל הרבה יותר לאט מאשר בכדור הארץ.";
-                    }
-                } else if (currentPlanet === 'jupiter') {
-                    if (currentObject === 'feather') {
-                        message = "אפילו שהאוויר מנסה להתנגד, הכבידה של צדק חזקה מדי והנוצה נופלת מהר!";
-                    } else {
-                        message = "שום דבר לא עוצר אותו – הכבידה של צדק מושכת אותו כמו טיל למטה.";
-                    }
-                }
+                // שלב 4 - אין דילוג
+                skipBtn.classList.add('hidden');
             }
 
-            el.innerText = message;
-            container.style.animation = 'none';
-            container.offsetHeight; 
-            container.style.animation = null;
+            // איפוס מצב כפתורים
+            document.querySelectorAll('.btn-active').forEach(el => el.classList.remove('btn-active'));
+            document.querySelectorAll('button').forEach(el => {
+                el.classList.remove('btn-disabled');
+                el.disabled = false;
+            });
+            document.getElementById('group-objects').classList.remove('btn-group-disabled');
+            document.getElementById('group-planets').classList.remove('btn-group-disabled');
+            document.getElementById('group-physics').classList.remove('btn-group-disabled');
+            document.getElementById('group-physics').classList.remove('hidden');
+
+            // יישום הגבלות שלב
+            if (level.lockedObject) {
+                setObject(level.lockedObject, false); 
+                document.getElementById('group-objects').classList.add('btn-group-disabled');
+            } else {
+                setObject(currentObject, false);
+            }
+
+            if (level.lockedPlanet) {
+                setPlanet(level.lockedPlanet, false);
+                document.getElementById('group-planets').classList.add('btn-group-disabled');
+            } else {
+                setPlanet(currentPlanet, false);
+            }
+
+            if (level.lockedDrag !== null) {
+                dragEnabled = level.lockedDrag;
+                document.getElementById('group-physics').classList.add('btn-group-disabled');
+            }
+            
+            if (level.hideDrag) {
+                document.getElementById('group-physics').classList.add('hidden');
+            }
+
+            updateDragButtonState();
+            
+            // עדכון ויזואלי סופי
+            updateVisuals();
+            resetObject(); 
+            
+            // שחזור טקסט התחלתי
+            setTimeout(() => {
+                document.getElementById('narrator-text').innerHTML = level.initialInstruction;
+            }, 50);
         }
+
+        function skipLevel() {
+            if (currentLevelIndex < LEVELS.length - 1) {
+                loadLevel(currentLevelIndex + 1);
+            }
+        }
+
+        function nextLevel() {
+            if (currentLevelIndex < LEVELS.length - 1) {
+                loadLevel(currentLevelIndex + 1);
+            }
+        }
+
+        function unlockNextLevelBtn() {
+            if (currentLevelIndex < LEVELS.length - 1) {
+                const nextBtn = document.getElementById('btn-next-level');
+                const skipBtn = document.getElementById('btn-skip-level');
+                
+                nextBtn.classList.remove('hidden');
+                skipBtn.classList.add('hidden'); // הסתרת כפתור הדילוג כשסיימו בהצלחה
+                
+                levelCompleted = true;
+            }
+        }
+
+        // --- עדכון טקסט משוב (לפני נפילה) ---
+        function updateLevelFeedback(actionType, value) {
+            const level = LEVELS[currentLevelIndex];
+            const el = document.getElementById('narrator-text');
+            
+            if (isFalling) return;
+
+            if (level.id === 1) { // מרוץ הכוכבים
+                if (actionType === 'planet') {
+                    if (value === 'jupiter') el.innerText = "כל הכבוד! צדק הוא כוכב ענק עם כבידה חזקה מאוד (כמעט 25 מ'/שנ²), לכן הכדור יפול הכי מהר.";
+                    else if (value === 'earth') el.innerText = "קרוב, הכבידה כאן חזקה (9.81), אבל יש במערכת השמש כוכב מסיבי הרבה יותר שמושך חזק יותר...";
+                    else if (value === 'moon') el.innerText = "לא בדיוק. הירח קטן והכבידה שלו חלשה (רק 1.62), לכן הכדור ייפול שם לאט מאוד.";
+                }
+            }
+            else if (level.id === 4) { // ארגז חול (משוב כללי)
+                 // ניתן להוסיף משוב מידי על בחירות אם רוצים
+            }
+        }
+
+        // --- עדכון טקסט בסיום נפילה ---
+        function onDropFinished() {
+            const level = LEVELS[currentLevelIndex];
+            const el = document.getElementById('narrator-text');
+
+            if (level.id === 1) {
+                // בשלב 1 כל השלמה פותחת את השלב הבא
+                unlockNextLevelBtn();
+            }
+            else if (level.id === 2) {
+                if (currentObject === 'feather') {
+                    el.innerText = "ראיתם? הנוצה רחבה וקלה. האוויר נתפס בה כמו מצנח ומאט אותה מאוד.";
+                    unlockNextLevelBtn(); // מפתח רק אם הופלה הנוצה
+                } else if (currentObject === 'metal') {
+                    el.innerText = "הכדור כבד וקטן, הוא 'חותך' את האוויר בקלות ונופל מהר.";
+                } else if (currentObject === 'tennis') {
+                    el.innerText = "נפילה רגילה. האוויר קצת מפריע, אבל הכדור כבד מספיק כדי ליפול מהר.";
+                }
+            }
+            else if (level.id === 3) {
+                if (currentObject === 'feather') {
+                    el.innerText = "מפתיע! בלי אוויר, הנוצה נופלת כמו אבן. היא מגיעה לרצפה ביחד עם הכדור!";
+                    unlockNextLevelBtn();
+                } else {
+                    el.innerText = "הכדור נופל. עכשיו נסו את הנוצה – האם היא תצליח להפתיע אתכם?";
+                }
+            }
+            else if (level.id === 4) {
+                // בדיקת Easter Egg לנפילה האיטית ביותר
+                if (currentPlanet === 'moon' && dragEnabled && currentObject === 'feather') {
+                    el.innerHTML = "<span class='text-yellow-300 font-bold'>וואו!</span> זו הנפילה האיטית ביותר במערכת השמש!<br>(שילוב של כבידה חלשה והתנגדות אוויר)";
+                } else {
+                    // משוב גנרי
+                    if (currentPlanet === 'jupiter') el.innerText = "צדק מושך חזק מאוד! ראיתם באיזו מהירות זה נפל?";
+                    else if (!dragEnabled) el.innerText = "ללא אוויר, הפיזיקה פשוטה יותר: הכל נופל באותו קצב (תלוי רק בכוכב).";
+                    else if (currentObject === 'feather') el.innerText = "הנוצה מרחפת לה לאט...";
+                    else el.innerText = "נסו לשנות את התנאים ולראות מה קורה!";
+                }
+            }
+        }
+
+        // --- פונקציות ליבה קיימות ---
 
         function init() {
             scene = new THREE.Scene();
@@ -120,6 +284,7 @@
 
             createStars();
 
+            // פלטפורמה
             const platGroup = new THREE.Group();
             const platGeo = new THREE.CylinderGeometry(2.5, 2.7, 0.5, 32);
             const platMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
@@ -139,6 +304,7 @@
             grid.position.y = 0.05;
             scene.add(grid);
 
+            // עמוד מדידה
             const poleGeo = new THREE.BoxGeometry(0.15, START_HEIGHT, 0.15);
             const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5 });
             const pole = new THREE.Mesh(poleGeo, poleMat);
@@ -152,9 +318,10 @@
             }
 
             createPlanetarySurface();
-            createObject();
-            updateVisuals(); 
-            updateNarrator();
+            
+            // טעינת השלב הראשון
+            loadLevel(0);
+
             animate();
 
             window.addEventListener('resize', onWindowResize);
@@ -163,6 +330,8 @@
                 mouseY = (e.clientY - window.innerHeight / 2) / 400;
             });
         }
+
+        // --- יצירת אובייקטים ---
 
         function createStars() {
             const starGeo = new THREE.BufferGeometry();
@@ -187,10 +356,6 @@
                 for(let i=0; i<30; i++) {
                     ctx.fillStyle = '#2d5a27';
                     ctx.beginPath(); ctx.arc(Math.random()*512, Math.random()*512, Math.random()*80 + 20, 0, Math.PI*2); ctx.fill();
-                }
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                for(let i=0; i<40; i++) {
-                    ctx.beginPath(); ctx.arc(Math.random()*512, Math.random()*512, Math.random()*100, 0, Math.PI*2); ctx.fill();
                 }
             } else if (type === 'moon') {
                 ctx.fillStyle = '#333';
@@ -218,41 +383,6 @@
             planetarySurface = new THREE.Mesh(geo, mat);
             planetarySurface.position.y = -200.5;
             scene.add(planetarySurface);
-        }
-
-        function toggleUI() {
-            uiVisible = !uiVisible;
-            document.getElementById('controls-panel').classList.toggle('collapsed', !uiVisible);
-        }
-
-        function updateVisuals() {
-            if (!scene.fog) return;
-            const p = PLANETS[currentPlanet];
-            if (dragEnabled && p.rho > 0) {
-                scene.fog.near = 5;
-                scene.fog.far = Math.max(20, 60 - (p.rho * 5));
-                grid.material.opacity = Math.min(0.5, 0.1 + p.rho * 0.1);
-            } else {
-                scene.fog.near = 50;
-                scene.fog.far = 300;
-                grid.material.opacity = 0.1;
-            }
-        }
-
-        function toggleDrag() {
-            dragEnabled = !dragEnabled;
-            const btn = document.getElementById('btn-drag-toggle');
-            if (dragEnabled) {
-                btn.innerText = "התנגדות אוויר: פעילה";
-                btn.classList.remove('btn-off');
-                btn.classList.add('btn-active');
-            } else {
-                btn.innerText = "התנגדות אוויר: כבויה";
-                btn.classList.remove('btn-active');
-                btn.classList.add('btn-off');
-            }
-            updateVisuals();
-            updateNarrator();
         }
 
         function createFeatherMesh() {
@@ -289,34 +419,86 @@
             scene.add(objectMesh);
         }
 
+        // --- לוגיקת ממשק משתמש ועדכון ---
+
+        function toggleUI() {
+            uiVisible = !uiVisible;
+            document.getElementById('controls-panel').classList.toggle('collapsed', !uiVisible);
+        }
+
+        function updateVisuals() {
+            if (!scene.fog) return;
+            const p = PLANETS[currentPlanet];
+            if (dragEnabled && p.rho > 0) {
+                scene.fog.near = 5;
+                scene.fog.far = Math.max(20, 60 - (p.rho * 5));
+                grid.material.opacity = Math.min(0.5, 0.1 + p.rho * 0.1);
+            } else {
+                scene.fog.near = 50;
+                scene.fog.far = 300;
+                grid.material.opacity = 0.1;
+            }
+        }
+
+        function updateDragButtonState() {
+            const btn = document.getElementById('btn-drag-toggle');
+            if (dragEnabled) {
+                btn.innerText = "התנגדות אוויר: פעילה";
+                btn.classList.remove('btn-off');
+                btn.classList.add('btn-active');
+            } else {
+                btn.innerText = "התנגדות אוויר: כבויה";
+                btn.classList.remove('btn-active');
+                btn.classList.add('btn-off');
+            }
+        }
+
+        function toggleDrag() {
+            if (LEVELS[currentLevelIndex].lockedDrag !== null) return; // הגנה
+            dragEnabled = !dragEnabled;
+            updateDragButtonState();
+            updateVisuals();
+            updateLevelFeedback('drag', dragEnabled);
+        }
+
         function resetObject() {
             isFalling = false;
             fallTime = 0;
             currentY = START_HEIGHT;
             currentVel = 0;
-            objectMesh.position.set(0, START_HEIGHT, 0);
-            objectMesh.rotation.set(0,0,0);
+            if(objectMesh) {
+                objectMesh.position.set(0, START_HEIGHT, 0);
+                objectMesh.rotation.set(0,0,0);
+            }
             updateUIStats();
             document.getElementById('drop-btn').innerText = "הפל!";
             document.getElementById('drop-btn').classList.replace('bg-red-600', 'bg-blue-600');
-            updateNarrator();
+            // הסתרת הכפתורים רק בשלב 1-3 כדי לא להפריע
+            if (currentLevelIndex < 3) {
+                document.getElementById('btn-next-level').classList.add('hidden');
+                
+                // כפתור הדילוג חוזר להיות מוצג כשמאפסים (אם לא סיימו כבר)
+                if (!levelCompleted) {
+                    document.getElementById('btn-skip-level').classList.remove('hidden');
+                }
+            }
         }
 
-        function setObject(type) {
+        function setObject(type, showFeedback = true) {
             currentObject = type;
             ['metal', 'tennis', 'feather'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('btn-active'));
             document.getElementById(`btn-${type}`).classList.add('btn-active');
             createObject();
-            updateNarrator();
+            if(showFeedback) updateLevelFeedback('object', type);
         }
 
-        function setPlanet(type) {
+        function setPlanet(type, showFeedback = true) {
             currentPlanet = type;
             const p = PLANETS[type];
             ['moon', 'earth', 'jupiter'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('btn-active'));
             document.getElementById(`btn-${type}`).classList.add('btn-active');
             
-            document.getElementById('planet-name').innerText = "מערכת " + p.name;
+            document.getElementById('planet-name-display').innerText = "מערכת " + p.name;
             document.getElementById('gravity-val').innerText = p.g;
             
             scene.background.setHex(p.bgColor);
@@ -329,17 +511,24 @@
 
             updateVisuals();
             resetObject();
-            updateNarrator();
+            if(showFeedback) updateLevelFeedback('planet', type);
         }
 
         function startDrop() {
-            if (isFalling) resetObject();
-            else {
+            if (isFalling) {
+                resetObject();
+            } else {
                 isFalling = true;
                 startTime = performance.now();
                 lastFrameTime = performance.now();
                 document.getElementById('drop-btn').innerText = "איפוס";
                 document.getElementById('drop-btn').classList.replace('bg-blue-600', 'bg-red-600');
+                
+                // הסתרת כפתורי ניווט בזמן נפילה
+                if(currentLevelIndex < 3) {
+                    document.getElementById('btn-next-level').classList.add('hidden');
+                    // לא נסתיר את הדילוג בזמן נפילה כדי שיוכלו להתחרט באמצע
+                }
             }
         }
 
@@ -356,15 +545,14 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            const time = performance.now() * 0.001;
 
             camera.position.x += ((4 + mouseX * 2) - camera.position.x) * 0.05;
             camera.position.y += (8 - mouseY * 2 - camera.position.y) * 0.05;
             camera.lookAt(0, 4, 0);
 
             const p = PLANETS[currentPlanet];
-            planetarySurface.rotation.y += 0.0002;
-            starSystem.rotation.y += 0.0001 * p.starSpeed;
+            if(planetarySurface) planetarySurface.rotation.y += 0.0002;
+            if(starSystem) starSystem.rotation.y += 0.0001 * p.starSpeed;
 
             if (isFalling) {
                 const now = performance.now();
@@ -389,7 +577,10 @@
                 if (currentY <= stopY) { 
                     currentY = stopY; 
                     currentVel = 0;
-                    isFalling = false; 
+                    isFalling = false;
+                    
+                    // סיום נפילה - קריאה לפונקציית הסיום
+                    onDropFinished();
                 }
                 
                 objectMesh.position.y = currentY;
