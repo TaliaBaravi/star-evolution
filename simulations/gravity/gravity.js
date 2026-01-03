@@ -1,20 +1,20 @@
     const PLANETS = {
             earth: { 
-                name: "כדור הארץ", g: 9.81, rho: 1.225, // Air Density kg/m^3
+                name: "כדור הארץ", g: 9.81, rho: 1.225, 
                 bgColor: 0x1a4a8a, fogColor: 0x0a192f, 
                 groundColor: 0x1a3a5a, gridColor: 0x3b82f6,
                 starSpeed: 0.2, starColor: 0xffffff,
                 surfaceType: 'earth'
             },
             moon: { 
-                name: "הירח", g: 1.62, rho: 0.0, // Vacuum
+                name: "הירח", g: 1.62, rho: 0.0, 
                 bgColor: 0x000000, fogColor: 0x000000, 
                 groundColor: 0x222222, gridColor: 0x444444,
                 starSpeed: 0.05, starColor: 0xcccccc,
                 surfaceType: 'moon'
             },
             jupiter: { 
-                name: "צדק", g: 24.79, rho: 0.16, // Top atmosphere density
+                name: "צדק", g: 24.79, rho: 0.16, 
                 bgColor: 0x2d1a0a, fogColor: 0x2d1a0a, 
                 groundColor: 0x4d3215, gridColor: 0xf59e0b,
                 starSpeed: 0.8, starColor: 0xffd8a8,
@@ -32,7 +32,7 @@
                 color: 0xbada55, roughness: 0.8 
             },
             feather: { 
-                name: "נוצה", type: "custom", mass: 0.002, Cd: 1.2, area: 0.15, // Effective cross-section
+                name: "נוצה", type: "custom", mass: 0.002, Cd: 1.2, area: 0.15, 
                 color: 0xffffff 
             }
         };
@@ -41,12 +41,12 @@
         let currentPlanet = 'earth';
         let currentObject = 'metal';
         let isFalling = false;
+        let dragEnabled = true;
         let startTime = 0;
         let fallTime = 0;
         let lastFrameTime = 0;
         let uiVisible = true;
 
-        // Physics state
         let currentY = START_HEIGHT;
         let currentVel = 0;
 
@@ -56,7 +56,8 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(PLANETS.earth.bgColor);
-            scene.fog = new THREE.Fog(PLANETS.earth.fogColor, 10, 80);
+            // Initial fog
+            scene.fog = new THREE.Fog(PLANETS.earth.fogColor, 10, 50);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(4, 8, 20); 
@@ -110,6 +111,7 @@
 
             createPlanetarySurface();
             createObject();
+            updateVisuals(); // Apply initial fog settings
             animate();
 
             window.addEventListener('resize', onWindowResize);
@@ -178,6 +180,39 @@
         function toggleUI() {
             uiVisible = !uiVisible;
             document.getElementById('controls-panel').classList.toggle('collapsed', !uiVisible);
+        }
+
+        function updateVisuals() {
+            if (!scene.fog) return;
+            const p = PLANETS[currentPlanet];
+            
+            // If air resistance is ON and the planet actually has air density > 0
+            if (dragEnabled && p.rho > 0) {
+                // Dense air: pull fog closer
+                scene.fog.near = 5;
+                scene.fog.far = 45;
+                grid.material.opacity = 0.3;
+            } else {
+                // Vacuum/No air: push fog far away for crystal clear view
+                scene.fog.near = 50;
+                scene.fog.far = 300;
+                grid.material.opacity = 0.1;
+            }
+        }
+
+        function toggleDrag() {
+            dragEnabled = !dragEnabled;
+            const btn = document.getElementById('btn-drag-toggle');
+            if (dragEnabled) {
+                btn.innerText = "התנגדות אוויר: פעילה";
+                btn.classList.remove('btn-off');
+                btn.classList.add('btn-active');
+            } else {
+                btn.innerText = "התנגדות אוויר: כבויה";
+                btn.classList.remove('btn-active');
+                btn.classList.add('btn-off');
+            }
+            updateVisuals();
         }
 
         function createFeatherMesh() {
@@ -250,6 +285,7 @@
             planetarySurface.material.map = generatePlanetaryTexture(p.surfaceType);
             planetarySurface.material.needsUpdate = true;
 
+            updateVisuals();
             resetObject();
         }
 
@@ -296,15 +332,10 @@
                 const o = OBJECTS[currentObject];
                 const area = o.type === 'sphere' ? Math.PI * Math.pow(o.radius, 2) : o.area;
                 
-                // PHYSICS UPDATE (NUMERICAL INTEGRATION)
-                // Fg = m * g (downward)
                 const fg = o.mass * p.g;
+                const effectiveRho = dragEnabled ? p.rho : 0;
+                const fd = 0.5 * effectiveRho * Math.pow(currentVel, 2) * o.Cd * area;
                 
-                // Fd = 0.5 * rho * v^2 * Cd * Area (opposes motion)
-                // We use sign of currentVel to ensure drag is always upward during fall
-                const fd = 0.5 * p.rho * Math.pow(currentVel, 2) * o.Cd * area;
-                
-                // Net Force = Fd - Fg (assuming y is up)
                 const netForce = fd - fg;
                 const accel = netForce / o.mass;
                 
