@@ -125,7 +125,7 @@
             ship.position.copy(shipPos);
             ship.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), shipPos.clone().normalize());
             ship.visible = true; trailPoints = []; updateTrail();
-            document.getElementById('status-panel').innerHTML = "SYSTEM READY.";
+            document.getElementById('status-panel').innerHTML = "מערכת מוכנה.";
             document.getElementById('launch-btn').disabled = false;
             camera.lookAt(0,0,0);
         }
@@ -160,10 +160,17 @@
                 if (trailPoints.length > 2000) trailPoints.shift();
                 updateTrail();
 
+                // מצלמה במצב בריחה
                 if (isEscaping) {
-                    let offset = shipVel.clone().normalize().multiplyScalar(-20).add(new THREE.Vector3(0, 8, 8));
-                    camera.position.lerp(shipPos.clone().add(offset), 0.05);
-                    camera.lookAt(shipPos);
+                    // "זום אאוט" - המצלמה מתרחקת מהמרכז בזמן שהחללית טסה קדימה
+                    let zoomSpeed = 0.1;
+                    camera.position.z += zoomSpeed;
+                    camera.position.y += zoomSpeed * 0.5;
+                    camera.lookAt(0, 0, 0); // המצלמה מסתכלת על כדור הארץ שמתרחק
+                    
+                    if (distance > 300) {
+                         isLaunching = false; // עצירת הסימולציה כשהיא רחוקה מאוד
+                    }
                 }
 
                 let currentAngle = (launchSite === 'pole') ? Math.atan2(shipPos.y, shipPos.x) : Math.atan2(shipPos.z, shipPos.x);
@@ -176,19 +183,21 @@
                     if (accumulatedAngle > Math.PI * 2 && !isOrbiting && !isEscaping) {
                         isOrbiting = true;
                         trail.material.color.set(0xff00ff);
-                        document.getElementById('status-panel').innerHTML = "STABLE ORBIT DETECTED.";
+                        document.getElementById('status-panel').innerHTML = "זוהה מסלול יציב.";
                     }
                 }
                 lastAngle = currentAngle;
 
                 if (distance < EARTH_RADIUS) {
                     isLaunching = false;
-                    document.getElementById('status-panel').innerHTML = "CRITICAL FAILURE: IMPACT.";
+                    document.getElementById('status-panel').innerHTML = "כשל קריטי: התנגשות בקרקע.";
                 }
 
                 if (distance > 50 && !isEscaping) {
                     isEscaping = true;
-                    document.getElementById('status-panel').innerHTML = "ESCAPE VELOCITY REACHED.";
+                    document.getElementById('status-panel').innerHTML = "להתראות כדור הארץ! ביי ביי!";
+                    document.getElementById('status-panel').style.color = "#ff00ff";
+                    document.getElementById('status-panel').style.textShadow = "0 0 10px #ff00ff";
                 }
             }
             renderer.render(scene, camera);
@@ -221,7 +230,9 @@
             else shipVel.set(0, 0, finalSpeed * 0.001);
             isLaunching = true;
             document.getElementById('launch-btn').disabled = true;
-            document.getElementById('status-panel').innerHTML = "LAUNCH SEQUENCE ACTIVE.";
+            document.getElementById('status-panel').innerHTML = "רצף שיגור פעיל.";
+            document.getElementById('status-panel').style.color = "#00f2ff";
+            document.getElementById('status-panel').style.textShadow = "none";
         });
 
         document.getElementById('reset-btn').addEventListener('click', resetShip);
