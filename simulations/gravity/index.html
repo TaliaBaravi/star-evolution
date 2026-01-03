@@ -31,7 +31,7 @@
             top: 20px; 
             right: 20px; 
             width: auto;
-            min-width: 200px;
+            min-width: 180px;
             pointer-events: none; 
             z-index: 10;
         }
@@ -47,6 +47,19 @@
         .hud-side.collapsed {
             transform: translateY(-50%) translateX(calc(-100% + 30px));
         }
+        
+        /* עיצוב חדש לתיבת הקריין בתחתית המסך */
+        .hud-bottom-narrator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
         .stats { font-family: monospace; }
         
         .toggle-btn {
@@ -67,17 +80,35 @@
             white-space: nowrap;
         }
 
+        #narrator-container {
+            padding: 14px;
+            /* רקע כהה יותר לשיפור הקריאות */
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 3px solid #3b82f6;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.5s ease-out;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-width: 640px) {
             .hud-side { width: 110px; left: 10px; }
-            .hud-top { right: 10px; top: 10px; }
+            .hud-top { right: 10px; top: 10px; min-width: 150px; }
+            .hud-bottom-narrator { bottom: 10px; width: 95%; }
         }
     </style>
 </head>
 <body>
 
+    <!-- HUD עליון - סטטיסטיקה בלבד -->
     <div class="hud-top glass p-3 text-right">
         <h1 class="text-sm font-bold tracking-wider mb-1">חוקר כוח המשיכה</h1>
         <p id="planet-name" class="text-blue-400 font-semibold uppercase text-[10px]">מערכת כדור הארץ</p>
+        
         <div class="stats text-[10px] mt-2 flex flex-col gap-1 opacity-80">
             <div>כבידה: <span id="gravity-val">9.81</span> מ'/שנ²</div>
             <div>גובה: <span id="height-val">10.0</span> מ'</div>
@@ -85,6 +116,16 @@
         </div>
     </div>
 
+    <!-- תיבת קריין תחתונה -->
+    <div class="hud-bottom-narrator">
+        <div id="narrator-container" class="glass rounded-xl">
+            <p id="narrator-text" class="text-xs sm:text-sm leading-relaxed font-medium text-white italic">
+                הסימולציה מוכנה. בחר אובייקט ועולם והתחל בניסוי!
+            </p>
+        </div>
+    </div>
+
+    <!-- תפריט צד -->
     <div id="controls-panel" class="hud-side glass p-3 flex flex-col gap-4 text-center">
         <button class="toggle-btn" onclick="toggleUI()">תפריט</button>
         
@@ -113,6 +154,7 @@
             הפל!
         </button>
     </div>
+
     <script src="gravity.js"></script>
 </body>
 </html>
