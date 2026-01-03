@@ -1,1 +1,179 @@
 
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משימת שיגור: Sci-Fi Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #000205;
+            color: #00f2ff;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 750px; /* הוקטן מ-1000 */
+            background: rgba(0, 20, 40, 0.6); /* שקיפות מוגברת */
+            backdrop-filter: blur(8px);
+            padding: 12px 18px; /* הוקטן מ-20 */
+            border-radius: 8px;
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px; /* הוקטן מ-15 */
+        }
+
+        .ui-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: nowrap; /* מניעת שבירת שורות שתופסת גובה */
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 14px; /* הוקטן משמעותית */
+            color: #00f2ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-grow: 1;
+            background: rgba(0, 242, 255, 0.05);
+            padding: 6px 12px;
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .site-selector {
+            display: flex;
+            gap: 3px;
+        }
+
+        .site-btn {
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 10px;
+            border: 1px solid #00f2ff;
+            cursor: pointer;
+            background: transparent;
+            color: #00f2ff;
+            transition: all 0.3s;
+        }
+
+        .site-btn.active {
+            background: #00f2ff;
+            color: #000;
+        }
+
+        .control-group {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 9px;
+            color: #00f2ff;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            height: 4px;
+            accent-color: #00f2ff;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.action-btn {
+            padding: 6px 14px;
+            border: 1px solid #00f2ff;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 11px;
+            background: rgba(0, 242, 255, 0.1);
+            color: #00f2ff;
+        }
+
+        button.action-btn:hover:not(:disabled) {
+            background: #00f2ff;
+            color: #000;
+        }
+
+        #status-panel {
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 242, 255, 0.1);
+            border-radius: 4px;
+            font-size: 11px;
+            text-align: center;
+            color: #00f2ff;
+        }
+
+        @media (max-width: 600px) {
+            .ui-main { flex-direction: column; align-items: stretch; }
+            h1 { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div class="ui-main">
+            <h1>OS: LAUNCH_v4.5</h1>
+            
+            <div class="controls-wrapper">
+                <div class="control-group" style="flex-grow: 0;">
+                    <label>COORDS:</label>
+                    <div class="site-selector">
+                        <button class="site-btn active" id="site-pole">POLE</button>
+                        <button class="site-btn" id="site-equator">EQUATOR</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="speed-slider">THRUST: <span id="speed-val">145</span></label>
+                    <input type="range" id="speed-slider" min="50" max="380" value="145">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="launch-btn" class="action-btn">LAUNCH</button>
+                <button id="reset-btn" class="action-btn">RESET</button>
+            </div>
+        </div>
+
+        <div id="status-panel">
+            SYSTEM STANDBY. READY FOR SEQUENCE.
+        </div>
+    </div>
+
+    <script src="escape.js"></script>
+</body>
+</html>
