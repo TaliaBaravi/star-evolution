@@ -7,69 +7,100 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050505; color: white; touch-action: manipulation; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; color: white; touch-action: manipulation; }
         canvas { display: block; }
         .glass {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
         }
         .btn-active {
             background: #3b82f6 !important;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+            border-color: rgba(255,255,255,0.5) !important;
+            color: white !important;
         }
-        .hud-top { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; text-align: center; pointer-events: none; }
-        .hud-bottom { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 600px; }
+        .hud-top { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            width: auto;
+            min-width: 200px;
+            pointer-events: none; 
+            z-index: 10;
+        }
+        .hud-side { 
+            position: absolute; 
+            right: 20px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            width: 140px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+        .hud-side.collapsed {
+            transform: translateY(-50%) translateX(calc(100% - 30px));
+        }
         .stats { font-family: monospace; }
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
+        
+        .toggle-btn {
+            position: absolute;
+            left: -25px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            background: #111;
+            border: 1px solid #333;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 2px 15px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: bold;
+            color: #888;
+            z-index: 20;
+            white-space: nowrap;
         }
-        .falling-indicator { animation: pulse 1s infinite; }
+
+        @media (max-width: 640px) {
+            .hud-side { width: 110px; right: 10px; }
+            .hud-top { left: 10px; top: 10px; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- UI Overlay -->
-    <div class="hud-top glass p-4">
-        <h1 class="text-xl font-bold tracking-wider mb-1">GRAVITY EXPLORER</h1>
-        <p id="planet-name" class="text-blue-400 font-semibold uppercase text-sm">Earth System</p>
-        <div class="stats text-xs mt-2 flex justify-around">
-            <div>Gravity: <span id="gravity-val">9.81</span> m/s²</div>
-            <div>Height: <span id="height-val">10.0</span> m</div>
-            <div>Time: <span id="time-val">0.00</span> s</div>
+    <div class="hud-top glass p-3">
+        <h1 class="text-sm font-bold tracking-wider mb-1">GRAVITY EXPLORER</h1>
+        <p id="planet-name" class="text-blue-400 font-semibold uppercase text-[10px]">Earth System</p>
+        <div class="stats text-[10px] mt-2 flex flex-col gap-1 opacity-80">
+            <div>G: <span id="gravity-val">9.81</span> m/s²</div>
+            <div>H: <span id="height-val">10.0</span> m</div>
+            <div>T: <span id="time-val">0.00</span> s</div>
         </div>
     </div>
 
-    <div class="hud-bottom glass p-4 flex flex-col gap-4">
-        <!-- Object Selection -->
-        <div class="flex justify-between items-center gap-2">
-            <span class="text-xs font-bold uppercase w-16">Object:</span>
-            <div class="flex flex-1 gap-2">
-                <button onclick="setObject('metal')" id="btn-metal" class="flex-1 py-2 glass text-xs rounded-lg transition btn-active">Metal Ball</button>
-                <button onclick="setObject('tennis')" id="btn-tennis" class="flex-1 py-2 glass text-xs rounded-lg transition">Tennis Ball</button>
-                <button onclick="setObject('feather')" id="btn-feather" class="flex-1 py-2 glass text-xs rounded-lg transition">Feather</button>
-            </div>
+    <div id="controls-panel" class="hud-side glass p-3 flex flex-col gap-4">
+        <button class="toggle-btn" onclick="toggleUI()">CONTROLS</button>
+        
+        <div class="flex flex-col gap-1">
+            <span class="text-[9px] font-bold uppercase opacity-60 ml-1">Object</span>
+            <button onclick="setObject('metal')" id="btn-metal" class="w-full py-2 glass text-[10px] rounded-lg transition btn-active">Metal Ball</button>
+            <button onclick="setObject('tennis')" id="btn-tennis" class="w-full py-2 glass text-[10px] rounded-lg transition">Tennis Ball</button>
+            <button onclick="setObject('feather')" id="btn-feather" class="w-full py-2 glass text-[10px] rounded-lg transition">Feather</button>
         </div>
 
-        <!-- Planet Selection -->
-        <div class="flex justify-between items-center gap-2">
-            <span class="text-xs font-bold uppercase w-16">World:</span>
-            <div class="flex flex-1 gap-2">
-                <button onclick="setPlanet('earth')" id="btn-earth" class="flex-1 py-2 glass text-xs rounded-lg transition btn-active">Earth</button>
-                <button onclick="setPlanet('moon')" id="btn-moon" class="flex-1 py-2 glass text-xs rounded-lg transition">Moon</button>
-                <button onclick="setPlanet('jupiter')" id="btn-jupiter" class="flex-1 py-2 glass text-xs rounded-lg transition">Jupiter</button>
-            </div>
+        <div class="flex flex-col gap-1">
+            <span class="text-[9px] font-bold uppercase opacity-60 ml-1">World</span>
+            <button onclick="setPlanet('earth')" id="btn-earth" class="w-full py-2 glass text-[10px] rounded-lg transition btn-active">Earth</button>
+            <button onclick="setPlanet('moon')" id="btn-moon" class="w-full py-2 glass text-[10px] rounded-lg transition">Moon</button>
+            <button onclick="setPlanet('jupiter')" id="btn-jupiter" class="w-full py-2 glass text-[10px] rounded-lg transition">Jupiter</button>
         </div>
 
-        <!-- Drop Button -->
-        <button id="drop-btn" onclick="startDrop()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg uppercase tracking-widest mt-2">
-            DROP OBJECT
+        <button id="drop-btn" onclick="startDrop()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition shadow-lg text-[10px] uppercase tracking-widest mt-2">
+            DROP
         </button>
     </div>
-
     <script src="gravity.js"></script>
 </body>
 </html>
