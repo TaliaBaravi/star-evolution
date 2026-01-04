@@ -1,4 +1,4 @@
-    // --- CONFIG & STAGES ---
+        // --- STAGES DATA ---
         const STAGES = [
             { id: 'cloud', name: 'ערפילית', desc: 'כוכבים מתחילים בעננים עצומים וקרים של גז ואבק. כוח המשיכה מתחיל למשוך את הליבה יחד.' },
             { id: 'protostar', name: 'קדם-כוכב', desc: 'הליבה מתחממת ומתגבשת. חומר מהערפילית קורס פנימה ויוצר דיסקת ספיחה לוהטת.' },
@@ -8,7 +8,8 @@
             { id: 'remnant', name: 'שארית / גורל', desc: '' }
         ];
 
-        const RADIUS = 25; 
+        // Layout Config (Optimized for Mobile)
+        let RADIUS = window.innerWidth < 600 ? 18 : 25; 
         const ANGLE_STEP = Math.PI / (STAGES.length - 1);
 
         // --- AUDIO ENGINE ---
@@ -47,7 +48,7 @@
         function init() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.copy(targetPos);
+            updateCameraPosition();
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -64,7 +65,7 @@
             createBackgroundStars();
             buildTimeline();
             
-            document.addEventListener('click', () => { if(!audioCtx) initAudio(); }, { once: true });
+            document.addEventListener('click', () => { if(!audioCtx) initAudio(); document.getElementById('hint').style.opacity = '0'; }, { once: true });
             document.addEventListener('mousedown', onPointerDown);
             document.addEventListener('touchstart', onPointerDown, { passive: false });
 
@@ -92,6 +93,17 @@
             animate();
         }
 
+        function updateCameraPosition() {
+            const aspect = window.innerWidth / window.innerHeight;
+            if (aspect < 1) { // Portrait
+                targetPos.set(0, 0, 48); // Back up more for vertical screens
+                RADIUS = 16;
+            } else { // Landscape
+                targetPos.set(0, 0, 42);
+                RADIUS = 24;
+            }
+        }
+
         function buildTimeline() {
             while(timelineGroup.children.length > 0) timelineGroup.remove(timelineGroup.children[0]);
             stagesData = [];
@@ -99,7 +111,8 @@
 
             const positions = STAGES.map((_, index) => {
                 const angle = Math.PI - (index * ANGLE_STEP);
-                return new THREE.Vector3(Math.cos(angle) * RADIUS, Math.sin(angle) * RADIUS * 0.4, 0);
+                const arcHeight = window.innerWidth < 600 ? 0.8 : 0.4;
+                return new THREE.Vector3(Math.cos(angle) * RADIUS, Math.sin(angle) * RADIUS * arcHeight, 0);
             });
 
             STAGES.forEach((stage, index) => {
@@ -123,10 +136,12 @@
             const arrowGroup = new THREE.Group();
             const dir = new THREE.Vector3().subVectors(posB, posA);
             const length = dir.length();
-            const shaftLen = length * 0.45;
+            const shaftLen = length * 0.4;
+            
             const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, shaftLen, 8), new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.4 }));
             const head = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.6 }));
             head.position.y = shaftLen / 2 + 0.6;
+            
             arrowGroup.add(body); arrowGroup.add(head);
             const mid = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
             arrowGroup.position.copy(mid);
@@ -138,9 +153,7 @@
             const g = obj.group;
             switch(obj.id) {
                 case 'cloud': 
-                    // Special emphasis for initial nebula
-                    createNebula(g, 0x6366f1, 8, 1500, obj); 
-                    // Add a subtle central glow to the initial cloud
+                    createNebula(g, 0x6366f1, 8, 1200, obj); 
                     createGlow(g, 2.5, 0x6366f1, 0.2, obj);
                     break;
                 case 'protostar': 
@@ -186,8 +199,7 @@
             const geo = new THREE.BufferGeometry(); const pos = [];
             for (let i = 0; i < count; i++) { const r = radius * Math.pow(Math.random(), exp ? 2 : 0.6); const t = Math.random() * Math.PI * 2, p = Math.acos((Math.random() * 2) - 1); pos.push(r * Math.sin(p) * Math.cos(t), r * Math.sin(p) * Math.sin(t), r * Math.cos(p)); }
             geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            // Bigger points for better initial visibility
-            const system = new THREE.Points(geo, new THREE.PointsMaterial({ color, size: obj.id === 'cloud' ? 0.2 : 0.12, transparent: true, opacity: obj.id === 'cloud' ? 0.6 : 0.4, blending: THREE.AdditiveBlending }));
+            const system = new THREE.Points(geo, new THREE.PointsMaterial({ color, size: 0.18, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending }));
             system.userData = { exp }; group.add(system); obj.nebula = system;
         }
 
@@ -201,7 +213,7 @@
         }
 
         function createExplosion(group, obj) {
-            const count = 600; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(count * 3); const dirs = [];
+            const count = 500; const geo = new THREE.BufferGeometry(); const pos = new Float32Array(count * 3); const dirs = [];
             for(let i=0; i<count; i++) dirs.push(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*12));
             geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); 
             const system = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffaa00, size: 0.18, transparent: true, blending: THREE.AdditiveBlending }));
@@ -247,7 +259,8 @@
         // --- MODE CONTROLS ---
         function setOverviewMode() {
             currentMode = 'overview'; selectedStageIndex = -1;
-            targetPos.set(0, 0, 45); lookAtTarget.set(0, 0, 0);
+            updateCameraPosition();
+            lookAtTarget.set(0, 0, 0);
             document.getElementById('infoPanel').classList.remove('show');
             document.getElementById('view-label').style.transform = 'translateX(-50%) translateY(0)';
             document.getElementById('view-label').style.opacity = '1';
@@ -258,8 +271,12 @@
             currentMode = 'detail'; selectedStageIndex = index;
             const stageObj = stagesData[index];
             const stageInfo = STAGES[index];
-            targetPos.set(stageObj.group.position.x, stageObj.group.position.y, 12);
+            
+            // Adjust zoom based on device
+            const zoomDist = window.innerWidth < 600 ? 14 : 11;
+            targetPos.set(stageObj.group.position.x, stageObj.group.position.y, zoomDist);
             lookAtTarget.copy(stageObj.group.position);
+            
             document.getElementById('stageTitle').innerText = stageInfo.name;
             let d = stageInfo.desc;
             if (stageInfo.id === 'remnant') {
@@ -269,8 +286,9 @@
             }
             document.getElementById('stageDesc').innerText = d;
             document.getElementById('infoPanel').classList.add('show');
-            document.getElementById('view-label').style.transform = 'translateX(-50%) translateY(50px)';
+            document.getElementById('view-label').style.transform = 'translateX(-50%) translateY(100px)';
             document.getElementById('view-label').style.opacity = '0';
+            
             if(selectedStageIndex === 5 && stellarMass >= 20) document.getElementById('wormholeBtn').style.display = 'block';
             else document.getElementById('wormholeBtn').style.display = 'none';
             if(stageInfo.id === 'death') playBoom(); else playWhoosh();
@@ -300,32 +318,39 @@
 
         function createBackgroundStars() {
             const geometry = new THREE.BufferGeometry(); const vertices = [];
-            for (let i = 0; i < 2000; i++) vertices.push(THREE.MathUtils.randFloatSpread(1000), THREE.MathUtils.randFloatSpread(1000), THREE.MathUtils.randFloatSpread(-500, 500));
+            for (let i = 0; i < 1500; i++) vertices.push(THREE.MathUtils.randFloatSpread(800), THREE.MathUtils.randFloatSpread(800), THREE.MathUtils.randFloatSpread(-500, 500));
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            starBackground = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.3 }));
+            starBackground = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.3 }));
             scene.add(starBackground);
         }
 
-        function onWindowResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function onWindowResize() { 
+            camera.aspect = window.innerWidth/window.innerHeight; 
+            camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateCameraPosition();
+            buildTimeline();
+        }
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta(); const time = clock.elapsedTime;
-            camera.position.lerp(targetPos, 0.1);
+            camera.position.lerp(targetPos, 0.08);
             camera.lookAt(lookAtTarget);
 
             arrowsData.forEach((arrow, i) => {
-                const targetOpacity = currentMode === 'overview' ? 0.4 : 0;
+                const targetOpacity = currentMode === 'overview' ? 0.35 : 0;
                 arrow.children.forEach(mesh => { mesh.material.opacity = THREE.MathUtils.lerp(mesh.material.opacity, targetOpacity, 0.1); });
-                const s = 1 + Math.sin(time * 4 + i) * 0.1; arrow.scale.set(s, s, s);
+                const s = 0.9 + Math.sin(time * 3.5 + i) * 0.1; arrow.scale.set(s, s, s);
             });
 
             stagesData.forEach(obj => {
                 const isFocused = obj.index === selectedStageIndex;
-                const s = isFocused ? 1.5 : (currentMode === 'overview' ? 1.0 : 0.4);
+                const baseS = window.innerWidth < 600 ? 0.85 : 1.0;
+                const s = isFocused ? 1.5 : (currentMode === 'overview' ? baseS : 0.4);
                 obj.group.scale.set(THREE.MathUtils.lerp(obj.group.scale.x, s, 0.1), THREE.MathUtils.lerp(obj.group.scale.y, s, 0.1), THREE.MathUtils.lerp(obj.group.scale.z, s, 0.1));
 
-                if (obj.nebula) obj.nebula.rotation.y += 0.002;
+                if (obj.nebula) obj.nebula.rotation.y += 0.0015;
                 if (obj.star) {
                     obj.star.rotation.y += obj.star.userData.isPulsar ? 0.3 : 0.01;
                     if (obj.star.userData.isPulsar) obj.star.rotation.z += 0.05;
@@ -349,7 +374,7 @@
                 }
                 if (obj.disk) { if(obj.disk.children) obj.disk.children.forEach(d => d.rotation.z += d.userData.speed || 0.02); else obj.disk.rotation.z += 0.02; }
                 obj.loops.forEach(loop => { const scale = 1 + Math.sin(time * 3 + loop.userData.phase) * 0.15; loop.scale.set(scale, scale, scale); });
-                if (obj.wormhole && obj.wormhole.material.map) { obj.wormhole.material.map.offset.y -= delta * 1.5; if(isFocused) camera.position.y += Math.sin(time * 15) * 0.015; }
+                if (obj.wormhole && obj.wormhole.material.map) { obj.wormhole.material.map.offset.y -= delta * 1.5; if(isFocused) camera.position.y += Math.sin(time * 15) * 0.01; }
                 if (obj.jets) obj.jets.forEach(j => { j.scale.x = 0.8 + Math.sin(time * 10) * 0.2; j.material.opacity = 0.3 + Math.sin(time * 15) * 0.2; });
             });
 
