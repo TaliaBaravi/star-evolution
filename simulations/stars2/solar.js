@@ -1,4 +1,4 @@
-        const canvas = document.getElementById('simCanvas');
+    const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
         const timeSlider = document.getElementById('timeSlider');
         const timeScaleDisplay = document.getElementById('timeScaleDisplay');
@@ -126,31 +126,6 @@
             lastMouse = { x: e.clientX, y: e.clientY };
         });
 
-        // Add touch support for dragging
-        canvas.addEventListener('touchstart', e => {
-            if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                canvas.dispatchEvent(new MouseEvent('mousedown', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY
-                }));
-            }
-        });
-
-        canvas.addEventListener('touchmove', e => {
-            if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                canvas.dispatchEvent(new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY
-                }));
-            }
-        });
-
-        canvas.addEventListener('touchend', () => {
-            isDragging = false;
-        });
-
         window.addEventListener('mouseup', () => isDragging = false);
         window.addEventListener('mousemove', e => {
             if (isDragging && viewState === 'SYSTEM') {
@@ -167,21 +142,80 @@
             }
         });
 
-        function enterDetailView(planet) {
-            viewState = 'DETAIL';
-            focusedPlanet = planet;
+        canvas.addEventListener('dblclick', () => {
+            camera = { x: 0, y: 0, zoom: 1.0 };
+        });
+
+        // --- MOBILE TOUCH CONTROLS ---
+        let initialPinchDist = null;
+        let initialZoom = null;
+        let lastTouchPos = { x: 0, y: 0 };
+
+        canvas.addEventListener('touchstart', e => {
+            if(welcomeModal.style.visibility === 'visible') return;
+
+            // 1 Finger: Start Panning
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = touch.clientX - rect.left;
+                const mouseY = touch.clientY - rect.top;
+
+                const worldX = (mouseX - width / 2) / camera.zoom - camera.x;
+                const worldY = (mouseY - height / 2) / camera.zoom - camera.y;
+
+                // Check if clicking a planet even on touch
+                if (viewState === 'SYSTEM') {
+                    for (let p of planets) {
+                        const pos = getPlanetPosition(p, time);
+                        const dist = Math.hypot(worldX - pos.x, worldY - pos.y);
+                        if (dist < p.radius + 35 / camera.zoom) {
+                            enterDetailView(p);
+                            return;
+                        }
+                    }
+                }
+
+                isDragging = true;
+                lastTouchPos = { x: touch.clientX, y: touch.clientY };
+            }
+            // 2 Fingers: Start Zooming
+            else if (e.touches.length === 2) {
+                e.preventDefault(); 
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                initialPinchDist = Math.hypot(dx, dy);
+                initialZoom = camera.zoom;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            if(welcomeModal.style.visibility === 'visible') return;
+
+            // 1 Finger: Pan
+            if (e.touches.length === 1 && isDragging) {
+                const dx = e.touches[0].clientX - lastTouchPos.x;
+                const dy = e.touches[0].clientY - lastTouchPos.y;
+                camera.x += dx / camera.zoom;
+                camera.y += dy / camera.zoom;
+                lastTouchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            // 2 Fingers: Zoom
+            else if (e.touches.length === 2 && initialPinchDist) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const currentDist = Math.hypot(dx, dy);
+                const zoomFactor = currentDist / initialPinchDist;
+                camera.zoom = initialZoom * zoomFactor;
+                camera.zoom = Math.min(Math.max(camera.zoom, 0.1), 10);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', () => {
             isDragging = false;
-            
-            document.getElementById('detailName').innerText = planet.name;
-            document.getElementById('detailType').innerText = planet.type;
-            document.getElementById('detailDesc').innerText = planet.desc;
-            document.getElementById('detailMoons').innerText = planet.moons.length;
-            document.getElementById('detailPeriod').innerText = planet.orbitalPeriod.toFixed(2) + "y";
-            
-            detailUI.classList.remove('hidden');
-            headerUI.classList.add('opacity-0', 'pointer-events-none');
-            footerUI.classList.add('opacity-0', 'pointer-events-none');
-        }
+            initialPinchDist = null;
+        });
 
         function solveKepler(M, e) {
             let E = M;
