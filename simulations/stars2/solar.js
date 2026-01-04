@@ -1,4 +1,4 @@
-    const canvas = document.getElementById('simCanvas');
+        const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
         const timeSlider = document.getElementById('timeSlider');
         const timeScaleDisplay = document.getElementById('timeScaleDisplay');
@@ -96,8 +96,12 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // Initial state fix for mobile check
+        welcomeModal.style.visibility = 'visible';
+
         closeModal.addEventListener('click', () => {
             welcomeModal.classList.add('opacity-0');
+            welcomeModal.style.pointerEvents = 'none'; // Disable immediately to allow journey interaction
             setTimeout(() => {
                 welcomeModal.style.visibility = 'hidden';
                 tutorialHint.classList.remove('hidden');
