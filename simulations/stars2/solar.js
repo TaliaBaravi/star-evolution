@@ -1,4 +1,4 @@
-    const canvas = document.getElementById('simCanvas');
+        const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
         const timeSlider = document.getElementById('timeSlider');
         const timeScaleDisplay = document.getElementById('timeScaleDisplay');
@@ -6,12 +6,13 @@
         const welcomeModal = document.getElementById('welcomeModal');
         const closeModal = document.getElementById('closeModal');
         const tutorialHint = document.getElementById('tutorialHint');
-        const systemUI = document.getElementById('systemUI');
+        const headerUI = document.getElementById('headerUI');
+        const footerUI = document.getElementById('footerUI');
         const detailUI = document.getElementById('detailUI');
         const closeDetail = document.getElementById('closeDetail');
 
         // State Management
-        let viewState = 'SYSTEM'; // 'SYSTEM' or 'DETAIL'
+        let viewState = 'SYSTEM';
         let focusedPlanet = null;
         let width, height;
         let time = 0;
@@ -72,12 +73,13 @@
             height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
+            // Adjust zoom for mobile screens on load
+            if (width < 600) camera.zoom = 0.5;
         }
 
         window.addEventListener('resize', resize);
         resize();
 
-        // Interaction logic
         closeModal.addEventListener('click', () => {
             welcomeModal.classList.add('opacity-0');
             setTimeout(() => {
@@ -91,8 +93,8 @@
             viewState = 'SYSTEM';
             focusedPlanet = null;
             detailUI.classList.add('hidden');
-            systemUI.classList.remove('opacity-0');
-            systemUI.classList.remove('pointer-events-none');
+            headerUI.classList.remove('opacity-0', 'pointer-events-none');
+            footerUI.classList.remove('opacity-0', 'pointer-events-none');
         });
 
         timeSlider.addEventListener('input', () => {
@@ -114,7 +116,7 @@
                 for (let p of planets) {
                     const pos = getPlanetPosition(p, time);
                     const dist = Math.hypot(worldX - pos.x, worldY - pos.y);
-                    if (dist < p.radius + 15 / camera.zoom) {
+                    if (dist < p.radius + 25 / camera.zoom) {
                         enterDetailView(p);
                         return;
                     }
@@ -122,6 +124,31 @@
                 isDragging = true;
             }
             lastMouse = { x: e.clientX, y: e.clientY };
+        });
+
+        // Add touch support for dragging
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                }));
+            }
+        });
+
+        canvas.addEventListener('touchmove', e => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                }));
+            }
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isDragging = false;
         });
 
         window.addEventListener('mouseup', () => isDragging = false);
@@ -152,11 +179,10 @@
             document.getElementById('detailPeriod').innerText = planet.orbitalPeriod.toFixed(2) + "y";
             
             detailUI.classList.remove('hidden');
-            systemUI.classList.add('opacity-0');
-            systemUI.classList.add('pointer-events-none');
+            headerUI.classList.add('opacity-0', 'pointer-events-none');
+            footerUI.classList.add('opacity-0', 'pointer-events-none');
         }
 
-        // Orbital Physics
         function solveKepler(M, e) {
             let E = M;
             for (let i = 0; i < 6; i++) {
@@ -213,24 +239,24 @@
 
             if (!isCentered && camera.zoom > 0.4) {
                 ctx.fillStyle = "#94a3b8";
-                ctx.font = `${11 / camera.zoom}px Inter`;
+                ctx.font = `${10 / camera.zoom}px Inter`;
                 ctx.textAlign = "center";
                 ctx.fillText(planet.name, pos.x, pos.y + r + 12 / camera.zoom);
             }
         }
 
         function drawPlanetDetail(planet, t) {
-            const pScale = 8; 
+            const pScale = 6; 
             drawBody(planet, t, pScale, true);
 
             planet.moons.forEach(moon => {
                 const angle = (t * moon.speed) + planet.argPerihelion;
-                const mx = Math.cos(angle) * (moon.dist * 2);
-                const my = Math.sin(angle) * (moon.dist * 2);
+                const mx = Math.cos(angle) * (moon.dist * 1.5);
+                const my = Math.sin(angle) * (moon.dist * 1.5);
 
                 ctx.beginPath();
                 ctx.strokeStyle = "rgba(255,255,255,0.05)";
-                ctx.arc(0, 0, moon.dist * 2, 0, Math.PI * 2);
+                ctx.arc(0, 0, moon.dist * 1.5, 0, Math.PI * 2);
                 ctx.stroke();
 
                 ctx.fillStyle = moon.color;
@@ -246,13 +272,13 @@
         }
 
         function drawSun() {
-            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, SUN_RADIUS * 4);
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, SUN_RADIUS * 3.5);
             grad.addColorStop(0, "#fbbf24");
             grad.addColorStop(0.3, "rgba(245, 158, 11, 0.3)");
             grad.addColorStop(1, "transparent");
             ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.arc(0, 0, SUN_RADIUS * 4, 0, Math.PI * 2);
+            ctx.arc(0, 0, SUN_RADIUS * 3.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = "#fffbeb";
             ctx.beginPath();
