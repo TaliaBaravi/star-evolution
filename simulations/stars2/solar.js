@@ -68,12 +68,28 @@
             }
         ];
 
+        // --- View Transitions ---
+        function enterDetailView(planet) {
+            viewState = 'DETAIL';
+            focusedPlanet = planet;
+            isDragging = false;
+            
+            document.getElementById('detailName').innerText = planet.name;
+            document.getElementById('detailType').innerText = planet.type;
+            document.getElementById('detailDesc').innerText = planet.desc;
+            document.getElementById('detailMoons').innerText = planet.moons.length;
+            document.getElementById('detailPeriod').innerText = planet.orbitalPeriod.toFixed(2) + "y";
+            
+            detailUI.classList.remove('hidden');
+            headerUI.classList.add('opacity-0', 'pointer-events-none');
+            footerUI.classList.add('opacity-0', 'pointer-events-none');
+        }
+
         function resize() {
             width = window.innerWidth;
             height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
-            // Adjust zoom for mobile screens on load
             if (width < 600) camera.zoom = 0.5;
         }
 
@@ -102,6 +118,7 @@
             tutorialHint.classList.remove('flex');
         });
 
+        // --- Interaction Listeners ---
         canvas.addEventListener('mousedown', e => {
             if(welcomeModal.style.visibility === 'visible') return;
             
@@ -154,7 +171,6 @@
         canvas.addEventListener('touchstart', e => {
             if(welcomeModal.style.visibility === 'visible') return;
 
-            // 1 Finger: Start Panning
             if (e.touches.length === 1) {
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
@@ -164,7 +180,6 @@
                 const worldX = (mouseX - width / 2) / camera.zoom - camera.x;
                 const worldY = (mouseY - height / 2) / camera.zoom - camera.y;
 
-                // Check if clicking a planet even on touch
                 if (viewState === 'SYSTEM') {
                     for (let p of planets) {
                         const pos = getPlanetPosition(p, time);
@@ -179,7 +194,6 @@
                 isDragging = true;
                 lastTouchPos = { x: touch.clientX, y: touch.clientY };
             }
-            // 2 Fingers: Start Zooming
             else if (e.touches.length === 2) {
                 e.preventDefault(); 
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -192,7 +206,6 @@
         canvas.addEventListener('touchmove', e => {
             if(welcomeModal.style.visibility === 'visible') return;
 
-            // 1 Finger: Pan
             if (e.touches.length === 1 && isDragging) {
                 const dx = e.touches[0].clientX - lastTouchPos.x;
                 const dy = e.touches[0].clientY - lastTouchPos.y;
@@ -200,7 +213,6 @@
                 camera.y += dy / camera.zoom;
                 lastTouchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
-            // 2 Fingers: Zoom
             else if (e.touches.length === 2 && initialPinchDist) {
                 e.preventDefault();
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -217,6 +229,7 @@
             initialPinchDist = null;
         });
 
+        // --- Physics & Math ---
         function solveKepler(M, e) {
             let E = M;
             for (let i = 0; i < 6; i++) {
@@ -237,6 +250,7 @@
             return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
         }
 
+        // --- Drawing Logic ---
         function drawOrbit(planet) {
             ctx.beginPath();
             ctx.strokeStyle = planet.color + "22";
