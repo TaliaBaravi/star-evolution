@@ -16,7 +16,7 @@
         const sliderArrow = document.getElementById('sliderArrow');
 
         // State Management
-        let viewState = 'START'; // 'START', 'TUTORIAL', 'SYSTEM', 'DETAIL'
+        let viewState = 'START';
         let tutorialStep = 0;
         let focusedPlanet = null;
         let width, height;
@@ -84,7 +84,7 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // סיור מודרך - לוגיקה
+        // Tutorial Logic
         const tutorialSteps = [
             {
                 text: "ברוכים הבאים למערכת השמש! גררו את המחוון למטה כדי להאיץ את הזמן.",
@@ -104,6 +104,11 @@
             {
                 text: "שימו לב לשביטים! 'כדורי השלג המלוכלכים' הללו נעים במסלולים אליפטיים קיצוניים.",
                 cam: { x: 0, y: 0, zoom: 0.25 },
+                showSliderArrow: false
+            },
+            {
+                text: "כדי ללמוד על כוכב לכת ספציפי ולראות את ירחיו, פשוט לחצו עליו!",
+                cam: { x: 0, y: 0, zoom: 0.6 },
                 showSliderArrow: false
             }
         ];
@@ -125,7 +130,7 @@
             tutorialUI.classList.add('hidden');
             sliderArrow.classList.add('hidden');
             tutorialStep = 0;
-            targetCamera = { x: 0, y: 0, zoom: 0.5 };
+            targetCamera = { x: 0, y: 0, zoom: 0.6 };
         }
 
         closeModal.addEventListener('click', () => {
@@ -388,7 +393,6 @@
             const timeScale = viewState === 'DETAIL' ? 1.0 : parseFloat(timeSlider.value);
             time += (timeScale * 0.005);
             
-            // מצלמה - אנימציית Lerp
             camera.x += (targetCamera.x - camera.x) * 0.05;
             camera.y += (targetCamera.y - camera.y) * 0.05;
             camera.zoom += (targetCamera.zoom - camera.zoom) * 0.05;
