@@ -70,8 +70,8 @@
                 <div class="inline-block p-3 rounded-full bg-blue-500/10 border border-blue-500/20 mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-blue-400 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
                 </div>
-                <h2 class="text-2xl font-bold tracking-tight text-white uppercase italic leading-tight text-balance">ברוכים הבאים למערכת השמש!</h2>
-                <p class="text-sm text-slate-300 leading-relaxed">
+                <h2 class="text-2xl font-bold tracking-tight text-white uppercase italic leading-tight text-balance text-center text-white">ברוכים הבאים למערכת השמש!</h2>
+                <p class="text-sm text-slate-300 leading-relaxed text-center">
                     היכנסו לשכונה הקוסמית שלנו. מוכנים לחקור את הכוכבים?
                 </p>
             </div>
@@ -85,7 +85,10 @@
     <div id="headerUI" class="fixed top-4 inset-x-4 z-10 p-4 rounded-2xl ui-panel shadow-2xl pointer-events-auto transition-opacity duration-300 flex justify-between items-center">
         <div>
             <h1 class="text-base font-bold tracking-tight text-white leading-none">מסלולי קפלר</h1>
-            <p class="text-[9px] text-slate-400 italic mt-1 uppercase tracking-wider">מפה קוסמית</p>
+            <div class="flex flex-col mt-1">
+                <p class="text-[9px] text-slate-400 italic uppercase tracking-wider">מפה קוסמית</p>
+                <p class="text-[10px] text-blue-400 font-medium mt-0.5">לחצו על כוכב לכת כדי ללמוד עליו</p>
+            </div>
         </div>
         <div class="text-left">
             <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">זמן שחלף</p>
@@ -95,7 +98,6 @@
 
     <!-- UI Footer -->
     <div id="footerUI" class="fixed bottom-4 inset-x-4 z-10 p-5 rounded-2xl ui-panel shadow-2xl pointer-events-auto transition-opacity duration-300 space-y-4">
-        <!-- Tutorial Arrow -->
         <div id="sliderArrow" class="hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex-col items-center pointer-events-none">
             <div class="pulse-arrow">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -122,10 +124,10 @@
     </div>
 
     <!-- Tutorial Box Overlay -->
-    <div id="tutorialUI" class="hidden fixed inset-0 pointer-events-none z-40 flex items-center justify-center px-6">
-        <div class="tutorial-box pointer-events-auto p-6 rounded-2xl max-w-xs w-full text-center space-y-4">
-            <p id="tutorialText" class="text-sm font-medium text-white leading-relaxed">ברוכים הבאים!</p>
-            <button id="tutorialNext" class="text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-4 py-2 rounded-lg">לחצו להמשך</button>
+    <div id="tutorialUI" class="hidden fixed inset-0 pointer-events-none z-40 flex items-start justify-center px-6 pt-24">
+        <div class="tutorial-box pointer-events-auto p-5 rounded-2xl max-w-xs w-full text-center space-y-3">
+            <p id="tutorialText" class="text-xs font-medium text-white leading-relaxed">ברוכים הבאים!</p>
+            <button id="tutorialNext" class="text-[9px] font-bold uppercase tracking-widest bg-blue-600 text-white px-4 py-2 rounded-lg">לחצו להמשך</button>
         </div>
     </div>
 
@@ -156,6 +158,7 @@
     </div>
 
     <canvas id="simCanvas"></canvas>
+
 
     <script src="solar.js"></script>
 </body>
