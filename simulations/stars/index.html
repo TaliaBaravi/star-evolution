@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>תהליך התפתחות כוכבים - מותאם למובייל</title>
+    <title>תהליך התפתחות כוכבים - ציר זמן אנכי</title>
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#050508">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -66,21 +66,13 @@
         label { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; margin-bottom: 6px; color: var(--text-dim); }
         
         .mass-slider { 
-            width: 100%; 
-            height: 8px; 
-            cursor: pointer; 
-            -webkit-appearance: none;
-            appearance: none;
+            width: 100%; height: 8px; cursor: pointer; -webkit-appearance: none; appearance: none;
             background: linear-gradient(to left, 
-                var(--color-white-dwarf) 0%, 
-                var(--color-white-dwarf) 25.4%, 
-                var(--color-neutron-star) 25.4%, 
-                var(--color-neutron-star) 66.1%, 
-                var(--color-black-hole) 66.1%, 
-                var(--color-black-hole) 100%
+                var(--color-white-dwarf) 0%, var(--color-white-dwarf) 25.4%, 
+                var(--color-neutron-star) 25.4%, var(--color-neutron-star) 66.1%, 
+                var(--color-black-hole) 66.1%, var(--color-black-hole) 100%
             );
-            border-radius: 10px;
-            outline: none;
+            border-radius: 10px; outline: none;
         }
 
         .mass-slider::-webkit-slider-thumb {
@@ -98,8 +90,7 @@
             background: var(--panel-bg); backdrop-filter: blur(15px);
             padding: 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateY(120%); opacity: 0;
-            margin-bottom: 10px;
+            transform: translateY(120%); opacity: 0; margin-bottom: 10px;
         }
 
         .stage-info.show { transform: translateY(0); opacity: 1; }
@@ -121,23 +112,11 @@
         }
         
         #view-label {
-            position: absolute; 
-            bottom: 40px; 
-            left: 50%; 
-            transform: translateX(-50%);
-            color: #fff; 
-            font-size: 14px; 
-            font-weight: 800;
-            text-align: center;
-            background: rgba(99, 102, 241, 0.2);
-            backdrop-filter: blur(12px);
-            padding: 12px 20px;
-            border-radius: 100px;
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            width: 85%;
-            max-width: 320px;
-            opacity: 1; 
-            pointer-events: none;
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 14px; font-weight: 800; text-align: center;
+            background: rgba(99, 102, 241, 0.2); backdrop-filter: blur(12px);
+            padding: 12px 20px; border-radius: 100px; border: 1px solid rgba(99, 102, 241, 0.3);
+            width: 85%; max-width: 320px; opacity: 1; pointer-events: none;
             transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
