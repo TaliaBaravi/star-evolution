@@ -8,8 +8,8 @@
             { id: 'remnant', name: 'שארית / גורל', desc: '' }
         ];
 
-        // Vertical Spacing (Adjusted for Mobile)
-        const VERTICAL_SPACING = 14;
+        // --- ARC CONFIG ---
+        const ARC_RADIUS = 15; 
 
         // --- AUDIO ENGINE ---
         let audioCtx, droneOsc, masterGain, soundEnabled = false;
@@ -33,7 +33,7 @@
         let stellarMass = 1.0, wormholeActive = false;
         let raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
 
-        const targetPos = new THREE.Vector3(0, 0, 50);
+        const targetPos = new THREE.Vector3(0, 0, 45);
         const lookAtTarget = new THREE.Vector3(0, 0, 0);
 
         function generateStarTexture(colorBase, type = 'granulated') {
@@ -95,9 +95,9 @@
         function updateCameraView() {
             const aspect = window.innerWidth / window.innerHeight;
             if (aspect < 1) { // Portrait
-                targetPos.set(0, 0, 55); 
+                targetPos.set(4, 0, 48); 
             } else { // Landscape
-                targetPos.set(0, 0, 45);
+                targetPos.set(2, 0, 38);
             }
         }
 
@@ -106,12 +106,11 @@
             stagesData = [];
             arrowsData = [];
 
-            // Calculate Vertical Positions (Cloud at top, Remnant at bottom)
-            const totalHeight = (STAGES.length - 1) * VERTICAL_SPACING;
-            const startY = totalHeight / 2;
-
             const positions = STAGES.map((_, index) => {
-                return new THREE.Vector3(0, startY - (index * VERTICAL_SPACING), 0);
+                const angle = (index / (STAGES.length - 1)) * Math.PI;
+                const x = Math.sin(angle) * ARC_RADIUS * 0.7; 
+                const y = Math.cos(angle) * ARC_RADIUS;       
+                return new THREE.Vector3(x, y, 0);
             });
 
             STAGES.forEach((stage, index) => {
@@ -124,25 +123,34 @@
                 stagesData.push(obj);
 
                 if (index < STAGES.length - 1) {
-                    const arrow = createVerticalArrow(positions[index], positions[index+1]);
+                    const arrow = createConnectingArrow(positions[index], positions[index+1]);
                     timelineGroup.add(arrow);
                     arrowsData.push(arrow);
                 }
             });
         }
 
-        function createVerticalArrow(posA, posB) {
+        function createConnectingArrow(posA, posB) {
             const arrowGroup = new THREE.Group();
             const dir = new THREE.Vector3().subVectors(posB, posA);
-            const shaftLen = VERTICAL_SPACING * 0.4;
+            const length = dir.length();
+            const shaftLen = length * 0.2;
             
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, shaftLen, 8), new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.3 }));
-            const head = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.5 }));
-            head.position.y = -shaftLen / 2 - 0.6;
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.12, shaftLen, 8), 
+                new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.3 })
+            );
+            const head = new THREE.Mesh(
+                new THREE.ConeGeometry(0.4, 0.8, 8), 
+                new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.5 })
+            );
+            head.position.y = -shaftLen / 2 - 0.4; 
+            head.rotation.z = Math.PI; 
             
             arrowGroup.add(body); arrowGroup.add(head);
             const mid = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
             arrowGroup.position.copy(mid);
+            arrowGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().normalize());
             return arrowGroup;
         }
 
@@ -150,7 +158,7 @@
             const g = obj.group;
             switch(obj.id) {
                 case 'cloud': 
-                    createNebula(g, 0x6366f1, 8, 1200, obj); 
+                    createNebula(g, 0x6366f1, 6, 1200, obj); 
                     createGlow(g, 2.5, 0x6366f1, 0.2, obj);
                     break;
                 case 'protostar': 
@@ -259,6 +267,7 @@
             updateCameraView();
             lookAtTarget.set(0, 0, 0);
             document.getElementById('infoPanel').classList.remove('show');
+            document.getElementById('view-label').style.transform = 'translateY(0)';
             document.getElementById('view-label').style.opacity = '1';
             playWhoosh();
         }
@@ -280,6 +289,7 @@
             }
             document.getElementById('stageDesc').innerText = d;
             document.getElementById('infoPanel').classList.add('show');
+            document.getElementById('view-label').style.transform = 'translateY(250px)'; // Hide deeper
             document.getElementById('view-label').style.opacity = '0';
             
             if(selectedStageIndex === 5 && stellarMass >= 20) document.getElementById('wormholeBtn').style.display = 'block';
